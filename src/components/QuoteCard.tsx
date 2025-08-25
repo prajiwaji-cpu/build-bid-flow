@@ -28,6 +28,11 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
     }
   };
 
+  const isProcessing = quote.status === 'processing';
+  const cardClassName = isProcessing 
+    ? 'w-full shadow-card bg-gradient-card hover:shadow-construction transition-all opacity-60 border-l-4 border-l-status-processing'
+    : 'w-full shadow-card bg-gradient-card hover:shadow-construction transition-shadow';
+
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
@@ -39,7 +44,19 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
   };
 
   return (
-    <Card className="w-full shadow-card bg-gradient-card hover:shadow-construction transition-shadow">
+    <Card className={cardClassName}>
+      {isProcessing && (
+        <div className="bg-status-processing/10 px-4 py-2 border-b">
+          <div className="flex items-center gap-2 text-sm text-status-processing">
+            <Clock className="w-4 h-4 animate-spin" />
+            <span className="font-medium">Quote in Progress</span>
+            <span className="text-muted-foreground">
+              - Our team is preparing your detailed estimate
+            </span>
+          </div>
+        </div>
+      )}
+      
       <CardHeader>
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -143,36 +160,59 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
           </div>
         )}
 
-        {viewMode === 'contractor' && onStatusChange && (
+        {/* Contractor Actions - Non-processing states */}
+        {viewMode === 'contractor' && onStatusChange && !isProcessing && (
           <div className="flex gap-2 pt-4 border-t">
             <Button
               size="sm"
               variant="outline"
               onClick={() => onStatusChange(quote.id, 'processing')}
-              disabled={quote.status === 'processing'}
             >
-              Processing
+              Start Processing
             </Button>
+            {quote.status === 'pending' && (
+              <>
+                <Button
+                  size="sm"
+                  className="bg-status-approved hover:bg-status-approved/90 text-white"
+                  onClick={() => onStatusChange(quote.id, 'approved')}
+                >
+                  Quick Approve
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-status-denied hover:bg-status-denied/90 text-white"
+                  onClick={() => onStatusChange(quote.id, 'denied')}
+                >
+                  Deny
+                </Button>
+              </>
+            )}
+          </div>
+        )}
+
+        {/* Contractor Actions - Processing state */}
+        {viewMode === 'contractor' && onStatusChange && isProcessing && (
+          <div className="flex gap-2 pt-4 border-t">
             <Button
               size="sm"
               className="bg-status-approved hover:bg-status-approved/90 text-white"
               onClick={() => onStatusChange(quote.id, 'approved')}
-              disabled={quote.status === 'approved'}
             >
-              Approve
+              Complete & Approve
             </Button>
             <Button
               size="sm"
               className="bg-status-denied hover:bg-status-denied/90 text-white"
               onClick={() => onStatusChange(quote.id, 'denied')}
-              disabled={quote.status === 'denied'}
             >
-              Deny
+              Deny Quote
             </Button>
           </div>
         )}
 
-        {onAddComment && (
+        {/* Comment Actions */}
+        {onAddComment && !isProcessing && (
           <Button
             variant="outline"
             size="sm"
@@ -181,6 +221,14 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
           >
             Add Comment
           </Button>
+        )}
+
+        {onAddComment && isProcessing && (
+          <div className="text-center py-2">
+            <p className="text-sm text-muted-foreground">
+              Comments will be available once processing is complete
+            </p>
+          </div>
         )}
       </CardContent>
     </Card>

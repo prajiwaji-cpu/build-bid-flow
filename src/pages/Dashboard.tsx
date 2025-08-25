@@ -100,8 +100,17 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
   };
 
   const getFilteredQuotes = (status?: QuoteStatus) => {
-    if (!status) return quotes;
-    return quotes.filter(quote => quote.status === status);
+    let filteredQuotes = status ? quotes.filter(quote => quote.status === status) : quotes;
+    
+    // Sort quotes: processing quotes go to bottom, others by most recent first
+    return filteredQuotes.sort((a, b) => {
+      // If one is processing and other isn't, processing goes to bottom
+      if (a.status === 'processing' && b.status !== 'processing') return 1;
+      if (a.status !== 'processing' && b.status === 'processing') return -1;
+      
+      // Otherwise sort by most recent first
+      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
+    });
   };
 
   const getStatusCounts = () => {
