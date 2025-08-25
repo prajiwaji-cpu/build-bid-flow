@@ -26,7 +26,8 @@ export default {
 				foreground: 'hsl(var(--foreground))',
 				primary: {
 					DEFAULT: 'hsl(var(--primary))',
-					foreground: 'hsl(var(--primary-foreground))'
+					foreground: 'hsl(var(--primary-foreground))',
+					hover: 'hsl(var(--primary-hover))'
 				},
 				secondary: {
 					DEFAULT: 'hsl(var(--secondary))',
@@ -51,6 +52,16 @@ export default {
 				card: {
 					DEFAULT: 'hsl(var(--card))',
 					foreground: 'hsl(var(--card-foreground))'
+				},
+				'construction-orange': {
+					DEFAULT: 'hsl(var(--construction-orange))',
+					foreground: 'hsl(var(--construction-orange-foreground))'
+				},
+				status: {
+					pending: 'hsl(var(--status-pending))',
+					processing: 'hsl(var(--status-processing))', 
+					approved: 'hsl(var(--status-approved))',
+					denied: 'hsl(var(--status-denied))'
 				},
 				sidebar: {
 					DEFAULT: 'hsl(var(--sidebar-background))',
@@ -88,7 +99,17 @@ export default {
 			},
 			animation: {
 				'accordion-down': 'accordion-down 0.2s ease-out',
-				'accordion-up': 'accordion-up 0.2s ease-out'
+				'accordion-up': 'accordion-up 0.2s ease-out',
+				'fade-in': 'fadeIn 0.5s ease-in',
+				'slide-up': 'slideUp 0.3s ease-out'
+			},
+			backgroundImage: {
+				'gradient-hero': 'var(--gradient-hero)',
+				'gradient-card': 'var(--gradient-card)'
+			},
+			boxShadow: {
+				'construction': 'var(--shadow-construction)',
+				'card': 'var(--shadow-card)'
 			}
 		}
 	},
