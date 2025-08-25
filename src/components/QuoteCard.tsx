@@ -42,12 +42,24 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
     <Card className="w-full shadow-card bg-gradient-card hover:shadow-construction transition-shadow">
       <CardHeader>
         <div className="flex justify-between items-start">
-          <div>
-            <CardTitle className="text-lg font-semibold">{quote.clientName}</CardTitle>
-            <CardDescription className="flex items-center gap-2 mt-1">
-              <Calendar className="w-4 h-4" />
-              Submitted: {formatDate(quote.submittedAt)}
-            </CardDescription>
+          <div className="flex-1">
+            <CardTitle className="text-lg font-semibold line-clamp-2 mb-2">
+              {quote.projectDescription.length > 80 
+                ? `${quote.projectDescription.substring(0, 80)}...` 
+                : quote.projectDescription}
+            </CardTitle>
+            <div className="flex flex-col gap-1 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4" />
+                <span>Submitted: {formatDate(quote.submittedAt)}</span>
+              </div>
+              {viewMode === 'contractor' && (
+                <div className="flex items-center gap-2">
+                  <span className="font-medium">Client:</span>
+                  <span>{quote.clientName}</span>
+                </div>
+              )}
+            </div>
           </div>
           <Badge className={getStatusColor(quote.status)} variant="secondary">
             {quote.status.charAt(0).toUpperCase() + quote.status.slice(1)}
@@ -92,7 +104,7 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
         <Separator />
 
         <div>
-          <h4 className="font-medium mb-2">Project Description:</h4>
+          <h4 className="font-medium mb-2">Full Project Details:</h4>
           <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
             {quote.projectDescription}
           </p>
