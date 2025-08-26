@@ -251,3 +251,6 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
           
           <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            </CardHeader>
+
+          </Card>
