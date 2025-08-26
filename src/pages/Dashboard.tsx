@@ -178,7 +178,7 @@ export default function Dashboard({
 
         {/* Tabs for filtering */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full max-w-md grid-cols-5">
+          <TabsList className="grid w-full max-w-xl grid-cols-5">
             <TabsTrigger value="all">
               All
               <Badge variant="secondary" className="ml-2 text-xs">
