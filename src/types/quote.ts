@@ -1,4 +1,5 @@
-export type QuoteStatus = 'pending' | 'processing' | 'approved' | 'denied';
+// src/types/quote.ts
+export type QuoteStatus = 'pending' | 'processing' | 'approved';
 
 export interface QuoteRequest {
   id: string;
