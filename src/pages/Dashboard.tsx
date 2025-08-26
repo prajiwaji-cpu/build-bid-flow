@@ -221,10 +221,10 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
                 <Plus className="w-4 h-4 mr-2" />
                 {viewMode === 'contractor' ? 'New Project' : 'New Request'}
               </Button>
-            </div>
-          </div>
-        </div>
-      </div>
+           </div>
+         </div>
+       </div>
+    </div>
 </div>
       <div className="container mx-auto px-4 py-8">
         {/* Stats Cards */}
@@ -239,7 +239,7 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
             </CardContent>
           </Card>
           </div>
-</div>
+      </div>
           <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
