@@ -199,31 +199,31 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
           <TabsList className="grid w-full max-w-md grid-cols-5">
             <TabsTrigger value="all">
               All
-              <Badge variant="secondary" className="ml-1 text-xs">
+              <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.all}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="pending">
               Pending
-              <Badge variant="secondary" className="ml-1 text-xs">
+              <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.pending}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="processing">
               Processing
-              <Badge variant="secondary" className="ml-1 text-xs">
+              <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.processing}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="approved">
               Approved
-              <Badge variant="secondary" className="ml-1 text-xs">
+              <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.approved}
               </Badge>
             </TabsTrigger>
             <TabsTrigger value="denied">
               Denied
-              <Badge variant="secondary" className="ml-1 text-xs">
+              <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.denied}
               </Badge>
             </TabsTrigger>
