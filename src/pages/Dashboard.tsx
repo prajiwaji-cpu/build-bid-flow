@@ -195,37 +195,11 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
               <h1 className="text-3xl font-bold text-primary">
                 {viewMode === 'contractor' ? 'Construction Dashboard' : 'My Quote Requests'}
               </h1>
-              <p className="text-muted-foreground mt-1">
-                {viewMode === 'contractor' 
-                  ? 'Manage and process construction quote requests from HiSAFE' 
-                  : 'Track your construction quote requests and their progress'}
-              </p>
-              {error && (
-                <div className="flex items-center gap-2 mt-2 text-sm text-amber-600">
-                  <AlertCircle className="w-4 h-4" />
-                  <span>Some data may be outdated due to connection issues</span>
-                </div>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                onClick={loadQuotesFromHiSAFE}
-                disabled={loading}
-                className="shadow-card"
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
-              <Button className="bg-primary hover:bg-primary-hover text-primary-foreground shadow-construction">
-                <Plus className="w-4 h-4 mr-2" />
-                {viewMode === 'contractor' ? 'New Project' : 'New Request'}
-              </Button>
-           </div>
-         </div>
-       </div>
-    </div>
-</div>
+              </div>
+          </div>
+        </div>
+      </div>
+
       <div className="container mx-auto px-4 py-8">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -238,8 +212,7 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
               <div className="text-2xl font-bold">{counts.all}</div>
             </CardContent>
           </Card>
-          </div>
-      </div>
+          
           <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
@@ -252,6 +225,119 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
           
           <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Processing</CardTitle>
+              <Users className="h-4 w-4 text-status-processing" />
             </CardHeader>
-
+            <CardContent>
+              <div className="text-2xl font-bold text-status-processing">{counts.processing}</div>
+            </CardContent>
           </Card>
+
+          <Card className="shadow-card bg-gradient-card">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium">Approved</CardTitle>
+              <CheckCircle className="h-4 w-4 text-status-approved" />
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold text-status-approved">{counts.approved}</div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Tabs for filtering quotes */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="all">
+              All <Badge variant="secondary" className="ml-2">{counts.all}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending <Badge variant="secondary" className="ml-2">{counts.pending}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="processing">
+              Processing <Badge variant="secondary" className="ml-2">{counts.processing}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="approved">
+              Approved <Badge variant="secondary" className="ml-2">{counts.approved}</Badge>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="all" className="mt-6">
+            <div className="grid gap-6">
+              {getFilteredQuotes().map((quote) => (
+                <QuoteCard
+                  key={quote.id}
+                  quote={quote}
+                  viewMode={viewMode}
+                  onStatusChange={handleStatusChange}
+                  onAddComment={handleAddComment}
+                />
+              ))}
+              {getFilteredQuotes().length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">No quotes found.</p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="pending" className="mt-6">
+            <div className="grid gap-6">
+              {getFilteredQuotes('pending').map((quote) => (
+                <QuoteCard
+                  key={quote.id}
+                  quote={quote}
+                  viewMode={viewMode}
+                  onStatusChange={handleStatusChange}
+                  onAddComment={handleAddComment}
+                />
+              ))}
+              {getFilteredQuotes('pending').length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">No pending quotes.</p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="processing" className="mt-6">
+            <div className="grid gap-6">
+              {getFilteredQuotes('processing').map((quote) => (
+                <QuoteCard
+                  key={quote.id}
+                  quote={quote}
+                  viewMode={viewMode}
+                  onStatusChange={handleStatusChange}
+                  onAddComment={handleAddComment}
+                />
+              ))}
+              {getFilteredQuotes('processing').length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">No processing quotes.</p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+
+          <TabsContent value="approved" className="mt-6">
+            <div className="grid gap-6">
+              {getFilteredQuotes('approved').map((quote) => (
+                <QuoteCard
+                  key={quote.id}
+                  quote={quote}
+                  viewMode={viewMode}
+                  onStatusChange={handleStatusChange}
+                  onAddComment={handleAddComment}
+                />
+              ))}
+              {getFilteredQuotes('approved').length === 0 && (
+                <Card className="p-8 text-center">
+                  <p className="text-muted-foreground">No approved quotes.</p>
+                </Card>
+              )}
+            </div>
+          </TabsContent>
+        </Tabs>
+      </div>
+    </div>
+  );
+}
