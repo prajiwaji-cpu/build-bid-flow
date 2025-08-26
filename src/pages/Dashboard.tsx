@@ -185,25 +185,25 @@ export default function Dashboard({
                 {counts.all}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="pending" className="mx-[5px]">
+            <TabsTrigger value="pending" className="mx-2">
               Pending
               <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.pending}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="processing" className="mx-[5px]">
+            <TabsTrigger value="processing" className="mx-2">
               Processing
               <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.processing}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="approved" className="mx-[5px]">
+            <TabsTrigger value="approved" className="mx-2">
               Approved
               <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.approved}
               </Badge>
             </TabsTrigger>
-            <TabsTrigger value="denied" className="mx-[5px]">
+            <TabsTrigger value="denied" className="mx-2">
               Denied
               <Badge variant="secondary" className="ml-2 text-xs">
                 {counts.denied}
