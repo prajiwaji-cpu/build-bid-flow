@@ -254,3 +254,4 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
             </CardHeader>
 
           </Card>
+ </div>
