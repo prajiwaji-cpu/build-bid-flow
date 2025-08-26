@@ -2,41 +2,36 @@
 import { QuoteRequest, QuoteStatus, Comment } from '@/types/quote';
 import { HiSAFETask } from './hisafeApi';
 
-// Field mapping configuration - UPDATE THESE WITH YOUR ACTUAL HISAFE FIELD NAMES
+// Field mapping configuration - HiSAFE field names
 export const FIELD_MAPPINGS = {
-  // Core quote fields - replace with your actual HiSAFE field names
-  clientName: 'client_name_field',           // Replace with actual field name
-  clientEmail: 'client_email_field',         // Replace with actual field name  
-  clientPhone: 'client_phone_field',         // Replace with actual field name
-  projectType: 'project_type_field',         // Replace with actual field name
-  projectDescription: 'project_desc_field',  // Replace with actual field name
-  budget: 'budget_field',                    // Replace with actual field name
-  timeline: 'timeline_field',                // Replace with actual field name
-  location: 'location_field',                // Replace with actual field name
-  estimatedCost: 'estimated_cost_field',     // Replace with actual field name
-  notes: 'notes_field',                      // Replace with actual field name
+  // Core quote fields
+  clientName: 'Customer.Name',
+  clientEmail: 'Customer.E-mail Address',
+  projectType: 'Task Form',
+  projectDescription: 'Item/Part Name',
+  estimatedNeedByDate: 'Estimated Need by Date',
+  estimatedCost: 'Quote Total',
   
-  // System fields (these might be standard HiSAFE fields)
-  status: 'status',                          // Might be standard 'status' field
-  createdDate: 'created_date',               // Might be standard creation date
-  updatedDate: 'updated_date',               // Might be standard update date
+  // System fields
+  status: 'Status',
+  createdDate: 'created_date',               // Standard creation date
+  updatedDate: 'updated_date',               // Standard update date
 };
 
 // Status mapping between your app and HiSAFE
 export const STATUS_MAPPINGS = {
-  // HiSAFE status ID/name -> Your app status
+  // HiSAFE status name -> Your app status
   fromHiSAFE: {
-    1: 'pending' as QuoteStatus,      // Replace 1 with actual HiSAFE status ID for pending
-    2: 'processing' as QuoteStatus,   // Replace 2 with actual HiSAFE status ID for processing  
-    3: 'approved' as QuoteStatus,     // Replace 3 with actual HiSAFE status ID for approved
-    4: 'denied' as QuoteStatus,       // Replace 4 with actual HiSAFE status ID for denied
+    'Awaiting Approval': 'pending' as QuoteStatus,
+    'Awaiting Quote Generation': 'processing' as QuoteStatus,
+    'Work in Progress': 'processing' as QuoteStatus,
+    'Quote Complete': 'approved' as QuoteStatus,
   },
-  // Your app status -> HiSAFE status ID/name
+  // Your app status -> HiSAFE status name
   toHiSAFE: {
-    'pending': 1,      // Replace 1 with actual HiSAFE status ID for pending
-    'processing': 2,   // Replace 2 with actual HiSAFE status ID for processing
-    'approved': 3,     // Replace 3 with actual HiSAFE status ID for approved
-    'denied': 4,       // Replace 4 with actual HiSAFE status ID for denied
+    'pending': 'Awaiting Approval',
+    'processing': 'Awaiting Quote Generation',
+    'approved': 'Quote Complete',
   }
 };
 
@@ -59,18 +54,18 @@ export class DataMappingService {
       id: task.task_id.toString(),
       clientName: getField(FIELD_MAPPINGS.clientName),
       clientEmail: getField(FIELD_MAPPINGS.clientEmail),
-      clientPhone: getField(FIELD_MAPPINGS.clientPhone),
+      clientPhone: '', // Removed - not used
       projectType: getField(FIELD_MAPPINGS.projectType),
       projectDescription: getField(FIELD_MAPPINGS.projectDescription),
-      budget: getField(FIELD_MAPPINGS.budget),
-      timeline: getField(FIELD_MAPPINGS.timeline),
-      location: getField(FIELD_MAPPINGS.location),
+      budget: '', // Removed - not used
+      timeline: getField(FIELD_MAPPINGS.estimatedNeedByDate), // Mapped to "Estimated Need by Date"
+      location: '', // Removed - not used
       status: mappedStatus,
       submittedAt: this.formatDate(getField(FIELD_MAPPINGS.createdDate)),
       updatedAt: this.formatDate(getField(FIELD_MAPPINGS.updatedDate)),
       estimatedCost: this.parseNumber(getField(FIELD_MAPPINGS.estimatedCost)),
-      notes: getField(FIELD_MAPPINGS.notes),
-      comments: this.parseComments(fields) // We'll implement this based on how comments are stored
+      notes: '', // Removed - not used
+      comments: this.parseComments(fields)
     };
     
     return quote;
@@ -80,17 +75,13 @@ export class DataMappingService {
   static mapQuoteToTaskFields(quote: Partial<QuoteRequest>): Record<string, any> {
     const fields: Record<string, any> = {};
     
-    // Map basic fields
+    // Map basic fields (only the ones we use)
     if (quote.clientName !== undefined) fields[FIELD_MAPPINGS.clientName] = quote.clientName;
     if (quote.clientEmail !== undefined) fields[FIELD_MAPPINGS.clientEmail] = quote.clientEmail;
-    if (quote.clientPhone !== undefined) fields[FIELD_MAPPINGS.clientPhone] = quote.clientPhone;
     if (quote.projectType !== undefined) fields[FIELD_MAPPINGS.projectType] = quote.projectType;
     if (quote.projectDescription !== undefined) fields[FIELD_MAPPINGS.projectDescription] = quote.projectDescription;
-    if (quote.budget !== undefined) fields[FIELD_MAPPINGS.budget] = quote.budget;
-    if (quote.timeline !== undefined) fields[FIELD_MAPPINGS.timeline] = quote.timeline;
-    if (quote.location !== undefined) fields[FIELD_MAPPINGS.location] = quote.location;
+    if (quote.timeline !== undefined) fields[FIELD_MAPPINGS.estimatedNeedByDate] = quote.timeline;
     if (quote.estimatedCost !== undefined) fields[FIELD_MAPPINGS.estimatedCost] = quote.estimatedCost;
-    if (quote.notes !== undefined) fields[FIELD_MAPPINGS.notes] = quote.notes;
     
     // Map status
     if (quote.status !== undefined) {
@@ -190,9 +181,9 @@ export class DataMappingService {
   static validateQuoteData(quote: Partial<QuoteRequest>): string[] {
     const errors: string[] = [];
     
-    if (!quote.clientName) errors.push('Client name is required');
-    if (!quote.clientEmail) errors.push('Client email is required');
-    if (!quote.projectDescription) errors.push('Project description is required');
+    if (!quote.clientName) errors.push('Customer name is required');
+    if (!quote.clientEmail) errors.push('Customer email is required');
+    if (!quote.projectDescription) errors.push('Item/Part description is required');
     
     return errors;
   }
