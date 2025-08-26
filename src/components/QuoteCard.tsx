@@ -1,9 +1,10 @@
+// src/components/QuoteCard.tsx
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { QuoteRequest } from '@/types/quote';
-import { Clock, MapPin, DollarSign, Phone, Mail, Calendar } from 'lucide-react';
+import { Clock, DollarSign, Mail, Calendar } from 'lucide-react';
 
 interface QuoteCardProps {
   quote: QuoteRequest;
@@ -21,8 +22,6 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
         return 'bg-status-processing text-white';
       case 'approved':
         return 'bg-status-approved text-white';
-      case 'denied':
-        return 'bg-status-denied text-white';
       default:
         return 'bg-muted text-muted-foreground';
     }
@@ -40,6 +39,15 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  };
+
+  const formatEstimatedNeedByDate = (dateString: string) => {
+    if (!dateString) return 'Not specified';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -72,7 +80,7 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
               </div>
               {viewMode === 'contractor' && (
                 <div className="flex items-center gap-2">
-                  <span className="font-medium">Client:</span>
+                  <span className="font-medium">Customer:</span>
                   <span>{quote.clientName}</span>
                 </div>
               )}
@@ -91,29 +99,14 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
               <Mail className="w-4 h-4" />
               <span>{quote.clientEmail}</span>
             </div>
-            {quote.clientPhone && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Phone className="w-4 h-4" />
-                <span>{quote.clientPhone}</span>
-              </div>
-            )}
-            {quote.location && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <MapPin className="w-4 h-4" />
-                <span>{quote.location}</span>
-              </div>
-            )}
           </div>
           
           <div className="space-y-2">
             <div className="text-sm">
-              <span className="font-medium">Project Type:</span> {quote.projectType || 'Not specified'}
+              <span className="font-medium">Task Form:</span> {quote.projectType || 'Not specified'}
             </div>
             <div className="text-sm">
-              <span className="font-medium">Budget:</span> {quote.budget || 'Not specified'}
-            </div>
-            <div className="text-sm">
-              <span className="font-medium">Timeline:</span> {quote.timeline || 'Not specified'}
+              <span className="font-medium">Estimated Need by Date:</span> {formatEstimatedNeedByDate(quote.timeline)}
             </div>
           </div>
         </div>
@@ -121,7 +114,7 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
         <Separator />
 
         <div>
-          <h4 className="font-medium mb-2">Full Project Details:</h4>
+          <h4 className="font-medium mb-2">Item/Part Details:</h4>
           <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
             {quote.projectDescription}
           </p>
@@ -130,14 +123,7 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
         {quote.estimatedCost && (
           <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-md">
             <DollarSign className="w-4 h-4 text-primary" />
-            <span className="font-medium">Estimated Cost: ${quote.estimatedCost.toLocaleString()}</span>
-          </div>
-        )}
-
-        {quote.notes && (
-          <div className="p-3 bg-muted/30 rounded-md">
-            <h5 className="font-medium mb-1">Contractor Notes:</h5>
-            <p className="text-sm text-muted-foreground">{quote.notes}</p>
+            <span className="font-medium">Quote Total: ${quote.estimatedCost.toLocaleString()}</span>
           </div>
         )}
 
@@ -171,22 +157,13 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
               Start Processing
             </Button>
             {quote.status === 'pending' && (
-              <>
-                <Button
-                  size="sm"
-                  className="bg-status-approved hover:bg-status-approved/90 text-white"
-                  onClick={() => onStatusChange(quote.id, 'approved')}
-                >
-                  Quick Approve
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-status-denied hover:bg-status-denied/90 text-white"
-                  onClick={() => onStatusChange(quote.id, 'denied')}
-                >
-                  Deny
-                </Button>
-              </>
+              <Button
+                size="sm"
+                className="bg-status-approved hover:bg-status-approved/90 text-white"
+                onClick={() => onStatusChange(quote.id, 'approved')}
+              >
+                Quick Approve
+              </Button>
             )}
           </div>
         )}
@@ -199,14 +176,7 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
               className="bg-status-approved hover:bg-status-approved/90 text-white"
               onClick={() => onStatusChange(quote.id, 'approved')}
             >
-              Complete & Approve
-            </Button>
-            <Button
-              size="sm"
-              className="bg-status-denied hover:bg-status-denied/90 text-white"
-              onClick={() => onStatusChange(quote.id, 'denied')}
-            >
-              Deny Quote
+              Complete Quote
             </Button>
           </div>
         )}
