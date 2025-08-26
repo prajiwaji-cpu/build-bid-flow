@@ -149,8 +149,7 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
       all: quotes.length,
       pending: quotes.filter(q => q.status === 'pending').length,
       processing: quotes.filter(q => q.status === 'processing').length,
-      approved: quotes.filter(q => q.status === 'approved').length,
-      denied: quotes.filter(q => q.status === 'denied').length
+      approved: quotes.filter(q => q.status === 'approved').length
     };
   };
 
