@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { QuoteRequest, QuoteStatus } from '@/types/quote';
 import { Plus, Building2, Users, Clock, CheckCircle } from 'lucide-react';
 
-// Mock data - in a real app this would come from your backend
+// LEGENDARY - Replace this mock data with API call to fetch quotes from your internal system
 const mockQuotes: QuoteRequest[] = [{
   id: '1',
   clientName: 'John Smith',
@@ -79,9 +79,11 @@ interface DashboardProps {
 export default function Dashboard({
   viewMode = 'client'
 }: DashboardProps) {
+  // LEGENDARY - Replace mockQuotes with API call to fetch initial data
   const [quotes, setQuotes] = useState<QuoteRequest[]>(mockQuotes);
   const [activeTab, setActiveTab] = useState('all');
   const handleStatusChange = (id: string, status: QuoteStatus) => {
+    // LEGENDARY - Add API call here to update quote status in your internal system
     setQuotes(prev => prev.map(quote => quote.id === id ? {
       ...quote,
       status,
@@ -124,6 +126,7 @@ export default function Dashboard({
                 {viewMode === 'contractor' ? 'Manage and process construction quote requests' : 'Track your construction quote requests and their progress'}
               </p>
             </div>
+            {/* LEGENDARY - Update this button to navigate to your form link */}
             <Button className="bg-primary hover:bg-primary-hover text-primary-foreground shadow-construction">
               <Plus className="w-4 h-4 mr-2" />
               {viewMode === 'contractor' ? 'New Project' : 'New Request'}
