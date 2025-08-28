@@ -56,7 +56,7 @@ class HiSAFEApiService {
       clientId: import.meta.env.VITE_HISAFE_CLIENT_ID || '',
       portalSlug: import.meta.env.VITE_HISAFE_PORTAL_SLUG || 'quotes',
       featureType: 'PORTAL',
-      apiVersion: '9.0.0'
+      apiVersion: '10.1.0'
     };
 
     if (!this.config.clientId) {
