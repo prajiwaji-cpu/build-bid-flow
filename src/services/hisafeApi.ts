@@ -1,15 +1,38 @@
 // src/services/hisafeApi.ts
 
+// Helper functions for PKCE
+function encodeBase64Url(value: Uint8Array): string {
+  const base64 = btoa(String.fromCharCode.apply(null, value as any as number[]));
+  return base64.split("=")[0].replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+function generateRandomBase64Url(length: number): string {
+  const randomBytes = new Uint8Array(length);
+  crypto.getRandomValues(randomBytes);
+  return encodeBase64Url(randomBytes);
+}
+
+async function generateCodeChallenge(codeVerifier: string): Promise<string> {
+  const codeChallengeRaw = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(codeVerifier));
+  return encodeBase64Url(new Uint8Array(codeChallengeRaw));
+}
+
+const CODE_VERIFIER_SESSION_STORAGE_KEY = "HISAFE_CODE_VERIFIER/";
+
 export interface HiSAFEConfig {
   baseUrl: string;
   clientId: string;
-  clientSecret: string;
   portalSlug: string;
+  featureType: string;
+  apiVersion: string;
 }
 
 export interface HiSAFETask {
   task_id: number;
   fields: Record<string, any>;
+  status?: string;
+  created_date?: string;
+  updated_date?: string;
 }
 
 export interface HiSAFEAuthResponse {
@@ -20,77 +43,129 @@ export interface HiSAFEAuthResponse {
 
 class HiSAFEApiService {
   private config: HiSAFEConfig;
-  private accessToken: string | null = null;
-  private tokenExpiry: number = 0;
+  private headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Timezone-IANA': Intl.DateTimeFormat().resolvedOptions().timeZone,
+    'X-Locale': Intl.NumberFormat().resolvedOptions().locale,
+  };
 
-  constructor(config: HiSAFEConfig) {
-    this.config = config;
+  constructor() {
+    // Use import.meta.env for Vite environment variables
+    this.config = {
+      baseUrl: import.meta.env.VITE_HISAFE_BASE_URL || 'https://adhikari.forms.jobtraq.app',
+      clientId: import.meta.env.VITE_HISAFE_CLIENT_ID || '',
+      portalSlug: import.meta.env.VITE_HISAFE_PORTAL_SLUG || 'quotes',
+      featureType: 'PORTAL',
+      apiVersion: '9.0.0'
+    };
+
+    if (!this.config.clientId) {
+      console.error('VITE_HISAFE_CLIENT_ID is not set in environment variables');
+    }
   }
 
-  // OAuth2 Authentication
-  private async authenticate(): Promise<string> {
-    if (this.accessToken && Date.now() < this.tokenExpiry) {
-      return this.accessToken;
-    }
+  private getApiUrl(path: string): string {
+    const prefix = `${this.config.baseUrl}/api/${this.config.apiVersion}`;
+    return path.startsWith('/') ? prefix + path : prefix + '/' + path;
+  }
 
-    try {
-      // Step 1: Get authorization code (this is simplified - in reality you'd need PKCE)
-      const authUrl = new URL(`${this.config.baseUrl}/api/9.0.0/oauth2/authorize`);
-      authUrl.searchParams.set('feature_type', 'PORTAL');
-      authUrl.searchParams.set('feature_key', this.config.portalSlug);
-      authUrl.searchParams.set('response_type', 'code');
-      authUrl.searchParams.set('client_id', this.config.clientId);
-      authUrl.searchParams.set('redirect_uri', window.location.origin);
-
-      // For backend integration, you'd handle this differently
-      // This is a simplified approach for demonstration
-      console.warn('Full OAuth2 flow needed - this is a simplified implementation');
-
-      // Step 2: Exchange code for token (placeholder)
-      const tokenResponse = await fetch(`${this.config.baseUrl}/api/9.0.0/oauth2/token`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Timezone-IANA': 'America/New_York',
-          'X-Locale': 'en-US',
-          'Accept-Language': 'en-US',
-        },
-        body: JSON.stringify({
-          grant_type: 'authorization_code',
-          code: 'AUTHORIZATION_CODE_FROM_REDIRECT',
-          client_id: this.config.clientId,
-          client_secret: this.config.clientSecret,
-          code_verifier: 'CODE_VERIFIER_FROM_PKCE'
-        })
-      });
-
-      if (!tokenResponse.ok) {
-        throw new Error(`Authentication failed: ${tokenResponse.statusText}`);
-      }
-
-      const authData: HiSAFEAuthResponse = await tokenResponse.json();
-      this.accessToken = authData.access_token;
-      this.tokenExpiry = Date.now() + (authData.expires_in * 1000);
+  async initAuth(): Promise<boolean> {
+    // Check if we're returning from auth redirect
+    const params = new URLSearchParams(location.search);
+    const state = params.get('state');
+    
+    if (state === 'auth-complete') {
+      // Clean up URL
+      params.delete('state');
+      const qs = params.toString();
+      history.replaceState(null, '', location.origin + location.pathname + (qs ? '?' + qs : ''));
       
-      return this.accessToken;
-
-    } catch (error) {
-      console.error('Authentication error:', error);
-      throw new Error('Failed to authenticate with HiSAFE');
+      // Test if auth worked
+      try {
+        await this.testAuth();
+        return true;
+      } catch (error) {
+        console.error('Auth test failed:', error);
+        return false;
+      }
     }
+
+    // Test current auth status
+    try {
+      await this.testAuth();
+      return true;
+    } catch (error) {
+      // Need to authenticate
+      await this.redirectToAuth();
+      return false;
+    }
+  }
+
+  private async redirectToAuth(): Promise<void> {
+    const codeVerifier = generateRandomBase64Url(64);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const state = generateRandomBase64Url(8);
+
+    // Store verifier for later use (if switching to code flow)
+    sessionStorage.setItem(CODE_VERIFIER_SESSION_STORAGE_KEY + state, codeVerifier);
+
+    const params = new URLSearchParams([
+      ['feature_type', this.config.featureType],
+      ['feature_key', this.config.portalSlug],
+      ['response_type', 'none'], // Frontend-only auth
+      ['client_id', this.config.clientId],
+      ['redirect_uri', location.href],
+      ['code_challenge_method', 'S256'],
+      ['code_challenge', codeChallenge],
+      ['state', 'auth-complete'],
+    ]);
+
+    location.href = this.getApiUrl('oauth2/authorize?' + params.toString());
+  }
+
+  private async testAuth(): Promise<any> {
+    const params = new URLSearchParams([
+      ['featureType', this.config.featureType],
+      ['feature', this.config.portalSlug]
+    ]);
+
+    const response = await fetch(this.getApiUrl('self?' + params.toString()), {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include', // Important for cookie-based auth
+      headers: this.headers,
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer'
+    });
+
+    if (!response.ok) {
+      throw new Error('Not authenticated');
+    }
+
+    return response.json();
   }
 
   // Get portal metadata
   async getPortalMetadata() {
-    const token = await this.authenticate();
-    
-    const response = await fetch(`${this.config.baseUrl}/api/9.0.0/portal/metadata`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-Timezone-IANA': 'America/New_York',
-        'X-Locale': 'en-US',
-        'Accept-Language': 'en-US',
-      }
+    const isAuthenticated = await this.initAuth();
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const params = new URLSearchParams([
+      ['featureType', this.config.featureType],
+      ['feature', this.config.portalSlug]
+    ]);
+
+    const response = await fetch(this.getApiUrl('portal/metadata?' + params.toString()), {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include',
+      headers: this.headers,
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer'
     });
 
     if (!response.ok) {
@@ -102,18 +177,26 @@ class HiSAFEApiService {
 
   // Load portal dashboard data (gets tasks)
   async loadPortalData(seriesIds: string[] = ['1', '2', '3']) {
-    const token = await this.authenticate();
+    const isAuthenticated = await this.initAuth();
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const params = new URLSearchParams([
+      ['featureType', this.config.featureType],
+      ['feature', this.config.portalSlug]
+    ]);
     
-    const url = new URL(`${this.config.baseUrl}/api/9.0.0/portal/load`);
-    seriesIds.forEach(id => url.searchParams.append('seriesId', id));
-    
-    const response = await fetch(url.toString(), {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-Timezone-IANA': 'America/New_York',
-        'X-Locale': 'en-US',
-        'Accept-Language': 'en-US',
-      }
+    seriesIds.forEach(id => params.append('seriesId', id));
+
+    const response = await fetch(this.getApiUrl('portal/load?' + params.toString()), {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include',
+      headers: this.headers,
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer'
     });
 
     if (!response.ok) {
@@ -125,15 +208,24 @@ class HiSAFEApiService {
 
   // Get task metadata for a specific form
   async getTaskMetadata(formId: number) {
-    const token = await this.authenticate();
-    
-    const response = await fetch(`${this.config.baseUrl}/api/9.0.0/create-task/${formId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-Timezone-IANA': 'America/New_York',
-        'X-Locale': 'en-US',
-        'Accept-Language': 'en-US',
-      }
+    const isAuthenticated = await this.initAuth();
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const params = new URLSearchParams([
+      ['featureType', this.config.featureType],
+      ['feature', this.config.portalSlug]
+    ]);
+
+    const response = await fetch(this.getApiUrl(`create-task/${formId}?` + params.toString()), {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include',
+      headers: this.headers,
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer'
     });
 
     if (!response.ok) {
@@ -145,15 +237,24 @@ class HiSAFEApiService {
 
   // Get specific task details
   async getTask(taskId: number) {
-    const token = await this.authenticate();
-    
-    const response = await fetch(`${this.config.baseUrl}/api/9.0.0/task/${taskId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'X-Timezone-IANA': 'America/New_York',
-        'X-Locale': 'en-US',
-        'Accept-Language': 'en-US',
-      }
+    const isAuthenticated = await this.initAuth();
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const params = new URLSearchParams([
+      ['featureType', this.config.featureType],
+      ['feature', this.config.portalSlug]
+    ]);
+
+    const response = await fetch(this.getApiUrl(`task/${taskId}?` + params.toString()), {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include',
+      headers: this.headers,
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer'
     });
 
     if (!response.ok) {
@@ -165,18 +266,26 @@ class HiSAFEApiService {
 
   // Create a new task
   async createTask(formId: number, fields: Record<string, any>) {
-    const token = await this.authenticate();
-    
-    const response = await fetch(`${this.config.baseUrl}/api/9.0.0/task`, {
+    const isAuthenticated = await this.initAuth();
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const params = new URLSearchParams([
+      ['featureType', this.config.featureType],
+      ['feature', this.config.portalSlug]
+    ]);
+
+    const response = await fetch(this.getApiUrl('task?' + params.toString()), {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Timezone-IANA': 'America/New_York',
-        'X-Locale': 'en-US',
-        'Accept-Language': 'en-US',
-      },
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include',
+      headers: this.headers,
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer',
       body: JSON.stringify({
+        form_id: formId,
         fields,
         options: {}
       })
@@ -191,17 +300,24 @@ class HiSAFEApiService {
 
   // Update a task
   async updateTask(taskId: number, fields: Record<string, any>) {
-    const token = await this.authenticate();
-    
-    const response = await fetch(`${this.config.baseUrl}/api/9.0.0/task/${taskId}`, {
+    const isAuthenticated = await this.initAuth();
+    if (!isAuthenticated) {
+      throw new Error('Authentication required');
+    }
+
+    const params = new URLSearchParams([
+      ['featureType', this.config.featureType],
+      ['feature', this.config.portalSlug]
+    ]);
+
+    const response = await fetch(this.getApiUrl(`task/${taskId}?` + params.toString()), {
       method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        'X-Timezone-IANA': 'America/New_York',
-        'X-Locale': 'en-US',
-        'Accept-Language': 'en-US',
-      },
+      mode: 'cors',
+      cache: 'no-cache',
+      credentials: 'include',
+      headers: this.headers,
+      redirect: 'follow',
+      referrerPolicy: 'no-referrer',
       body: JSON.stringify({
         fields,
         options: {}
@@ -214,15 +330,30 @@ class HiSAFEApiService {
 
     return response.json();
   }
+
+  // Helper method to get all tasks (quotes) with proper error handling
+  async getAllTasks(): Promise<HiSAFETask[]> {
+    try {
+      const portalData = await this.loadPortalData();
+      
+      // The response structure may vary - adjust based on actual API response
+      if (portalData && portalData.tasks) {
+        return portalData.tasks;
+      } else if (portalData && Array.isArray(portalData)) {
+        return portalData;
+      } else if (portalData && portalData.data && Array.isArray(portalData.data)) {
+        return portalData.data;
+      }
+      
+      console.warn('Unexpected portal data structure:', portalData);
+      return [];
+    } catch (error) {
+      console.error('Failed to get all tasks:', error);
+      throw error;
+    }
+  }
 }
 
 // Create and export service instance
-const hisafeConfig: HiSAFEConfig = {
-  baseUrl: 'https://adhikari.forms.jobtraq.app',
-  clientId: process.env.VITE_HISAFE_CLIENT_ID || 'YOUR_CLIENT_ID_HERE',
-  clientSecret: process.env.VITE_HISAFE_CLIENT_SECRET || 'YOUR_CLIENT_SECRET_HERE',
-  portalSlug: 'quotes'
-};
-
-export const hisafeApi = new HiSAFEApiService(hisafeConfig);
+export const hisafeApi = new HiSAFEApiService();
 export default hisafeApi;
