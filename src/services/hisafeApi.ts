@@ -241,6 +241,12 @@ class HiSAFEApiService {
     if (!isAuthenticated) {
       throw new Error('Authentication required');
     }
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API Error Response:", errorText);
+      throw new Error(errorText || `Request failed: ${response.statusText}`);
+    }
+
 
     const alwaysAddParams = new URLSearchParams([
       ["featureType", this.config.featureType],
@@ -293,7 +299,7 @@ class HiSAFEApiService {
   }
 
   // Load portal dashboard data (gets tasks)
-  async loadPortalData(seriesIds: string[] = ['1', '2', '3']) {
+  async loadPortalData(seriesIds: string[] = ['1']) {
     const params = new URLSearchParams();
     seriesIds.forEach(id => params.append('seriesId', id));
     return this.request('GET', `portal/load?${params}`);
