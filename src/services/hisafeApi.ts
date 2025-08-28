@@ -299,9 +299,9 @@ class HiSAFEApiService {
   }
 
   // Load portal dashboard data (gets tasks)
-  async loadPortalData(seriesIds: string[] = ['1']) {
-    const params = new URLSearchParams();
-    seriesIds.forEach(id => params.append('seriesId', id));
+  async loadPortalData(seriesIds: string[] = []) {
+   // const params = new URLSearchParams();
+  //  seriesIds.forEach(id => params.append('seriesId', id));
     return this.request('GET', `portal/load?${params}`);
   }
 
