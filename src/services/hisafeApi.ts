@@ -362,5 +362,5 @@ export const hisafeApi = new HiSAFEApiService();
 export default hisafeApi;
 
 // Create and export service instance
-export const hisafeApi = new HiSAFEApiService();
-export default hisafeApi;
+import hisafeApi from "@/services/hisafeApi";
+
