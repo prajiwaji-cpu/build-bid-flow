@@ -303,7 +303,7 @@ class HiSAFEApiService {
   async loadPortalData(seriesIds: string[] = []) {
    // const params = new URLSearchParams();
   //  seriesIds.forEach(id => params.append('seriesId', id));
-    return this.request('GET', `portal/load?${params}`);
+    return this.request('GET', `portal/load?${alwaysAddParams}`);
   }
 
   // Get task metadata for a specific form
