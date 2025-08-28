@@ -256,6 +256,7 @@ class HiSAFEApiService {
     const separator = url.includes('?') ? '&' : '?';
     const fullUrl = this.getApiUrl(url) + separator + alwaysAddParams;
 
+    console.log(`Hitting API [${method}]:`, fullUrl);
     const response = await fetch(fullUrl, {
       method,
       mode: 'cors',
