@@ -1,37 +1,86 @@
-// src/services/quotesService.ts
+// src/services/quotesService.ts - Updated to get complete task details
 import { QuoteRequest, QuoteStatus } from '@/types/quote';
 import { hisafeApi, HiSAFETask } from './hisafeApi';
 import DataMappingService from './dataMapping';
 
 export class QuotesService {
   
-  // Get all quotes from HiSAFE
+  // Get all quotes from HiSAFE with complete field data
   async getAllQuotes(): Promise<QuoteRequest[]> {
     try {
-      const tasks = await hisafeApi.getAllTasks();
+      console.log('🔄 Loading all quotes with complete data...');
       
-      // Map HiSAFE tasks to quote requests
-      const quotes = tasks.map(task => {
+      // First, get the basic task list from portal data
+      const basicTasks = await hisafeApi.getAllTasks();
+      console.log(`📋 Found ${basicTasks.length} basic tasks`);
+      
+      if (basicTasks.length === 0) {
+        console.warn('⚠️ No tasks found in portal data');
+        return [];
+      }
+      
+      // Then, get complete details for each task
+      const completeQuotes: QuoteRequest[] = [];
+      const failedTasks: number[] = [];
+      
+      for (const basicTask of basicTasks) {
         try {
-          return DataMappingService.mapTaskToQuote(task);
+          console.log(`🔍 Getting complete data for task ${basicTask.task_id}...`);
+          
+          // Get complete task details including all form fields
+          const completeTask = await hisafeApi.getTask(basicTask.task_id);
+          
+          // Merge basic task data with complete task data
+          const mergedTask: HiSAFETask = {
+            ...basicTask,
+            ...completeTask,
+            // Ensure we keep the basic fields from the list view
+            task_id: basicTask.task_id,
+            status: completeTask.status || basicTask.status,
+            fields: completeTask.fields || basicTask.fields || {}
+          };
+          
+          console.log(`✅ Complete task data for ${basicTask.task_id}:`, {
+            taskId: mergedTask.task_id,
+            status: mergedTask.status,
+            fieldsCount: Object.keys(mergedTask.fields || {}).length,
+            availableFields: Object.keys(mergedTask.fields || {})
+          });
+          
+          // Map to quote
+          const quote = DataMappingService.mapTaskToQuote(mergedTask);
+          completeQuotes.push(quote);
+          
         } catch (error) {
-          console.warn(`Failed to map task ${task.task_id}:`, error);
-          // Debug the problematic task
-          DataMappingService.debugTaskStructure(task);
-          return null;
+          console.error(`❌ Failed to get complete data for task ${basicTask.task_id}:`, error);
+          failedTasks.push(basicTask.task_id);
+          
+          // Fallback: use basic task data
+          try {
+            const fallbackQuote = DataMappingService.mapTaskToQuote(basicTask);
+            fallbackQuote.notes = `Limited data available - full details failed to load`;
+            completeQuotes.push(fallbackQuote);
+            console.log(`⚠️ Using fallback data for task ${basicTask.task_id}`);
+          } catch (fallbackError) {
+            console.error(`💥 Complete failure for task ${basicTask.task_id}:`, fallbackError);
+          }
         }
-      }).filter(Boolean) as QuoteRequest[];
+      }
       
-      console.log(`Loaded ${quotes.length} quotes from ${tasks.length} tasks`);
-      return quotes;
+      if (failedTasks.length > 0) {
+        console.warn(`⚠️ Failed to get complete data for ${failedTasks.length} tasks:`, failedTasks);
+      }
+      
+      console.log(`🎉 Successfully loaded ${completeQuotes.length} complete quotes from ${basicTasks.length} tasks`);
+      return completeQuotes;
       
     } catch (error) {
-      console.error('Failed to get all quotes:', error);
+      console.error('💥 Failed to get all quotes:', error);
       throw new Error('Failed to load quotes from HiSAFE');
     }
   }
   
-  // Get a single quote by ID
+  // Get a single quote by ID with complete data
   async getQuote(quoteId: string): Promise<QuoteRequest | null> {
     try {
       const taskId = parseInt(quoteId);
@@ -39,12 +88,59 @@ export class QuotesService {
         throw new Error('Invalid quote ID');
       }
       
+      console.log(`🔍 Getting complete quote data for task ${taskId}...`);
       const task = await hisafeApi.getTask(taskId);
       return DataMappingService.mapTaskToQuote(task);
       
     } catch (error) {
       console.error(`Failed to get quote ${quoteId}:`, error);
       return null;
+    }
+  }
+  
+  // Add a comment to a quote
+  async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
+    try {
+      const taskId = parseInt(quoteId);
+      if (isNaN(taskId)) {
+        throw new Error('Invalid quote ID');
+      }
+      
+      console.log(`💬 Adding comment to task ${taskId}...`);
+      
+      // Get current quote data
+      const currentQuote = await this.getQuote(quoteId);
+      if (!currentQuote) {
+        throw new Error('Quote not found');
+      }
+      
+      // Add comment to the quote
+      const updatedQuote = DataMappingService.addCommentToQuote(currentQuote, commentText, author);
+      
+      // Serialize comments for HiSAFE storage
+      const serializedComments = DataMappingService.serializeCommentsForHiSAFE(updatedQuote.comments);
+      
+      // Prepare fields to update in HiSAFE
+      const fieldsToUpdate: Record<string, any> = {};
+      
+      // Update the comments field in HiSAFE
+      const commentsFieldName = 'Comments'; // You can adjust this based on your HiSAFE field name
+      fieldsToUpdate[commentsFieldName] = serializedComments;
+      
+      // Also update any other field you want to modify when a comment is added
+      // For example, if you have a "Last Comment" or "Internal Notes" field:
+      fieldsToUpdate['Last Comment'] = `${author}: ${commentText}`;
+      fieldsToUpdate['Last Updated'] = new Date().toISOString();
+      
+      // Update the task in HiSAFE
+      await hisafeApi.updateTask(taskId, fieldsToUpdate);
+      
+      console.log(`✅ Successfully added comment to task ${taskId}`);
+      return updatedQuote;
+      
+    } catch (error) {
+      console.error(`Failed to add comment to quote ${quoteId}:`, error);
+      throw error;
     }
   }
   
@@ -220,53 +316,4 @@ export class QuotesService {
   }
   
   // Test HiSAFE connection
-  async testConnection(): Promise<boolean> {
-    try {
-      await hisafeApi.initAuth();
-      const metadata = await hisafeApi.getPortalMetadata();
-      console.log('HiSAFE connection test successful:', metadata);
-      return true;
-    } catch (error) {
-      console.error('HiSAFE connection test failed:', error);
-      return false;
-    }
-  }
-  
-  // Get available form IDs and metadata
-  async getAvailableForms(): Promise<any[]> {
-    try {
-      const metadata = await hisafeApi.getPortalMetadata();
-      return metadata.forms || [];
-    } catch (error) {
-      console.error('Failed to get available forms:', error);
-      return [];
-    }
-  }
-  
-  // Debug method to inspect raw HiSAFE data
-  async debugRawData(): Promise<void> {
-    try {
-      console.group('HiSAFE Raw Data Debug');
-      
-      const portalData = await hisafeApi.loadPortalData();
-      console.log('Portal Data:', portalData);
-      
-      const tasks = await hisafeApi.getAllTasks();
-      console.log(`Found ${tasks.length} tasks`);
-      
-      if (tasks.length > 0) {
-        console.group('First Task Structure:');
-        DataMappingService.debugTaskStructure(tasks[0]);
-        console.groupEnd();
-      }
-      
-      console.groupEnd();
-    } catch (error) {
-      console.error('Debug failed:', error);
-    }
-  }
-}
-
-// Create and export service instance
-export const quotesService = new QuotesService();
-export default quotesService;
+  async test
