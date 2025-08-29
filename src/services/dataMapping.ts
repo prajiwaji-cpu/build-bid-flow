@@ -74,8 +74,17 @@ export class DataMappingService {
     };
     
     // Map status with fallback
-    const rawStatus = getFieldValue(FIELD_MAPPINGS.status) || task.status || 'Open';
-    const mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus] || 'pending';
+     let rawStatus = getFieldValue(FIELD_MAPPINGS.status);
+
+      if (!rawStatus && task.status) {
+      rawStatus = typeof task.status === 'string' ? task.status : task.status.name;
+      }
+
+      if (!rawStatus) {
+      rawStatus = 'Open';
+      }
+
+      const mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus] || 'pending';
     
     // Get client name - try multiple possible field names
     const clientName = getFieldValue(FIELD_MAPPINGS.clientName) || `Customer ${task.task_id}`;
