@@ -1,4 +1,4 @@
-// src/pages/Dashboard.tsx
+// src/pages/Dashboard.tsx - Improved version with flexible portal loading
 import { useState, useEffect } from 'react';
 import { QuoteCard } from '@/components/QuoteCard';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState('all');
+  const [debugInfo, setDebugInfo] = useState<any>(null);
   const { toast } = useToast();
 
   // Load quotes from HiSAFE on component mount
@@ -31,30 +32,132 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
     try {
       setLoading(true);
       setError(null);
+      setDebugInfo(null);
 
-      // Load portal data which should include tasks from all forms (1, 2, 3)
-      const portalData = await hisafeApi.loadPortalData(['1', '2', '3']);
-      
+      console.log('Starting to load quotes from HiSAFE...');
+
+      // First, get the portal metadata to understand what's available
+      let portalMetadata;
+      try {
+        console.log('Loading portal metadata...');
+        portalMetadata = await hisafeApi.getPortalMetadata();
+        console.log('Portal metadata loaded:', portalMetadata);
+        setDebugInfo(prev => ({ ...prev, metadata: portalMetadata }));
+      } catch (metadataError) {
+        console.warn('Failed to load portal metadata, continuing anyway:', metadataError);
+      }
+
+      // Extract available series/form IDs from metadata if available
+      let availableSeriesIds: string[] = [];
+      if (portalMetadata?.dashboardComponents) {
+        portalMetadata.dashboardComponents.forEach((component: any) => {
+          if (component.series) {
+            component.series.forEach((series: any) => {
+              if (series.id && !availableSeriesIds.includes(series.id.toString())) {
+                availableSeriesIds.push(series.id.toString());
+              }
+            });
+          }
+        });
+      }
+
+      console.log('Available series IDs from metadata:', availableSeriesIds);
+
+      // Try different approaches to load portal data
+      let portalData;
+      let loadingAttempts = [];
+
+      // Approach 1: Try with no series IDs (load all)
+      try {
+        console.log('Attempt 1: Loading portal data with no series IDs...');
+        portalData = await hisafeApi.loadPortalData();
+        console.log('Success - portal data loaded without series IDs:', portalData);
+        loadingAttempts.push({ approach: 'No series IDs', success: true, data: portalData });
+      } catch (error1) {
+        console.log('Attempt 1 failed:', error1.message);
+        loadingAttempts.push({ approach: 'No series IDs', success: false, error: error1.message });
+
+        // Approach 2: Try with metadata-discovered series IDs
+        if (availableSeriesIds.length > 0) {
+          try {
+            console.log(`Attempt 2: Loading portal data with discovered series IDs: ${availableSeriesIds.join(', ')}`);
+            portalData = await hisafeApi.loadPortalData(availableSeriesIds);
+            console.log('Success - portal data loaded with discovered series IDs:', portalData);
+            loadingAttempts.push({ approach: 'Discovered series IDs', success: true, data: portalData });
+          } catch (error2) {
+            console.log('Attempt 2 failed:', error2.message);
+            loadingAttempts.push({ approach: 'Discovered series IDs', success: false, error: error2.message });
+          }
+        }
+
+        // Approach 3: Try with common series IDs one by one
+        if (!portalData) {
+          const commonSeriesIds = ['1', '2', '3', '4', '5'];
+          for (const seriesId of commonSeriesIds) {
+            try {
+              console.log(`Attempt 3.${seriesId}: Loading portal data with series ID: ${seriesId}`);
+              const singleSeriesData = await hisafeApi.loadPortalData([seriesId]);
+              console.log(`Success - portal data loaded with series ID ${seriesId}:`, singleSeriesData);
+              
+              if (!portalData) {
+                portalData = singleSeriesData;
+              } else {
+                // Merge data from multiple series
+                Object.assign(portalData, singleSeriesData);
+              }
+              
+              loadingAttempts.push({ approach: `Single series ID: ${seriesId}`, success: true, data: singleSeriesData });
+            } catch (singleError) {
+              console.log(`Attempt 3.${seriesId} failed:`, singleError.message);
+              loadingAttempts.push({ approach: `Single series ID: ${seriesId}`, success: false, error: singleError.message });
+            }
+          }
+        }
+      }
+
+      setDebugInfo(prev => ({ ...prev, loadingAttempts }));
+
+      if (!portalData) {
+        throw new Error('Failed to load portal data with any approach. Check the console for detailed attempts.');
+      }
+
       const allQuotes: QuoteRequest[] = [];
 
-      // Process each series (form) data
-      Object.entries(portalData).forEach(([seriesId, componentData]: [string, any]) => {
-        if (componentData.type === 'list' && componentData.listResult) {
-          // Convert HiSAFE tasks to quotes
-          const quotesFromSeries = componentData.listResult.map((task: any) => {
-            return DataMappingService.mapTaskToQuote(task);
-          });
+      // Process the portal data
+      if (portalData && typeof portalData === 'object') {
+        Object.entries(portalData).forEach(([seriesId, componentData]: [string, any]) => {
+          console.log(`Processing series ${seriesId}:`, componentData);
           
-          allQuotes.push(...quotesFromSeries);
-        }
-      });
+          if (componentData && componentData.type === 'list' && componentData.listResult) {
+            console.log(`Found ${componentData.listResult.length} tasks in series ${seriesId}`);
+            
+            // Convert HiSAFE tasks to quotes
+            const quotesFromSeries = componentData.listResult.map((task: any) => {
+              try {
+                return DataMappingService.mapTaskToQuote(task);
+              } catch (mappingError) {
+                console.warn(`Failed to map task ${task.task_id}:`, mappingError);
+                DataMappingService.debugTaskStructure(task);
+                return null;
+              }
+            }).filter(Boolean);
+            
+            allQuotes.push(...quotesFromSeries);
+            console.log(`Added ${quotesFromSeries.length} quotes from series ${seriesId}`);
+          } else if (componentData && componentData.type) {
+            console.log(`Series ${seriesId} has component type '${componentData.type}' but no listResult`);
+          }
+        });
+      }
 
       setQuotes(allQuotes);
       
       toast({
-        title: "Data Loaded",
-        description: `Successfully loaded ${allQuotes.length} quotes from HiSAFE`,
+        title: "Data Loaded Successfully",
+        description: `Loaded ${allQuotes.length} quotes from HiSAFE`,
       });
+
+      console.log(`Successfully loaded ${allQuotes.length} quotes`);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load quotes';
@@ -66,11 +169,6 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
         description: errorMessage,
         variant: "destructive"
       });
-
-      // Fallback to mock data for development/testing
-      console.warn('Falling back to mock data due to API error');
-      // You can uncomment the line below to use mock data during development
-      // setQuotes(mockQuotes);
       
     } finally {
       setLoading(false);
@@ -83,6 +181,8 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
       if (isNaN(taskId)) {
         throw new Error('Invalid task ID');
       }
+
+      console.log(`Updating task ${taskId} status to ${status}`);
 
       // Find the current quote to get existing data
       const currentQuote = quotes.find(q => q.id === id);
@@ -124,9 +224,6 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
   };
 
   const handleAddComment = async (id: string) => {
-    // TODO: Implement comment functionality
-    // This would require a dialog/modal to collect comment text
-    // and then update the task in HiSAFE
     toast({
       title: "Comments",
       description: "Comment functionality coming soon!",
@@ -162,7 +259,7 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
         <Card className="p-8 text-center shadow-card bg-gradient-card">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <h2 className="text-xl font-semibold mb-2">Loading Quotes</h2>
-          <p className="text-muted-foreground">Connecting to HiSAFE and loading your data...</p>
+          <p className="text-muted-foreground">Connecting to HiSAFE and discovering available data sources...</p>
         </Card>
       </div>
     );
@@ -172,14 +269,54 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
   if (error && quotes.length === 0) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="p-8 text-center shadow-card bg-gradient-card max-w-md">
+        <Card className="p-8 text-center shadow-card bg-gradient-card max-w-lg">
           <AlertCircle className="w-12 h-12 text-destructive mx-auto mb-4" />
           <h2 className="text-xl font-semibold mb-2">Connection Error</h2>
           <p className="text-muted-foreground mb-4">{error}</p>
-          <Button onClick={loadQuotesFromHiSAFE} className="bg-primary hover:bg-primary-hover">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Retry Connection
-          </Button>
+          
+          {debugInfo && (
+            <div className="text-left text-sm mb-4 p-4 bg-muted rounded-lg">
+              <h3 className="font-semibold mb-2">Debug Information:</h3>
+              {debugInfo.metadata && (
+                <div className="mb-2">
+                  <strong>Portal has {debugInfo.metadata.dashboardComponents?.length || 0} dashboard components</strong>
+                </div>
+              )}
+              {debugInfo.loadingAttempts && debugInfo.loadingAttempts.length > 0 && (
+                <div>
+                  <strong>Loading attempts:</strong>
+                  <ul className="ml-4 mt-1">
+                    {debugInfo.loadingAttempts.map((attempt: any, index: number) => (
+                      <li key={index} className={attempt.success ? 'text-green-600' : 'text-red-600'}>
+                        {attempt.approach}: {attempt.success ? 'Success' : `Failed - ${attempt.error}`}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <Button onClick={loadQuotesFromHiSAFE} className="bg-primary hover:bg-primary-hover w-full">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Retry Connection
+            </Button>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                console.log('=== CONFIGURATION DEBUG ===');
+                console.log('Base URL:', import.meta.env.VITE_HISAFE_BASE_URL);
+                console.log('Client ID:', import.meta.env.VITE_HISAFE_CLIENT_ID ? 'Set' : 'Not set');
+                console.log('Portal Slug:', import.meta.env.VITE_HISAFE_PORTAL_SLUG);
+                console.log('Debug Info:', debugInfo);
+                console.log('============================');
+              }}
+              className="w-full"
+            >
+              Log Debug Info
+            </Button>
+          </div>
         </Card>
       </div>
     );
@@ -195,7 +332,12 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
               <h1 className="text-3xl font-bold text-primary">
                 {viewMode === 'contractor' ? 'Construction Dashboard' : 'My Quote Requests'}
               </h1>
-              </div>
+              {error && (
+                <p className="text-sm text-muted-foreground mt-2">
+                  Warning: {error} (Showing cached data)
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -274,7 +416,15 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
               ))}
               {getFilteredQuotes().length === 0 && (
                 <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No quotes found.</p>
+                  <p className="text-muted-foreground mb-4">No quotes found.</p>
+                  <Button 
+                    onClick={loadQuotesFromHiSAFE} 
+                    className="mt-4"
+                    variant="outline"
+                  >
+                    <RefreshCw className="w-4 h-4 mr-2" />
+                    Reload Data
+                  </Button>
                 </Card>
               )}
             </div>
