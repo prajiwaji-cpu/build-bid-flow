@@ -8,7 +8,7 @@ export const FIELD_MAPPINGS = {
   clientName: ['Customer.Name', 'customer_name', 'name', 'client_name', 'Name'],
   clientEmail: ['Customer.E-mail Address', 'customer_email', 'email', 'client_email', 'Email'], 
   projectType: ['Task Form', 'task_form', 'project_type', 'type', 'form_name'],
-  projectDescription: ['Item/Part Name', 'item_part_name', 'description', 'project_description', 'details', 'summary'],
+  projectDescription: ['Item/Part Name', 'item_part_name', 'brief_description', 'project_description', 'details', 'summary'],
   estimatedNeedByDate: ['Estimated Need by Date', 'need_by_date', 'timeline', 'due_date', 'deadline'],
   estimatedCost: ['Quote Total', 'quote_total', 'total', 'cost', 'amount', 'price'],
   
@@ -28,8 +28,6 @@ export const STATUS_MAPPINGS = {
     'Quote Complete': 'approved' as QuoteStatus,
     'Quote Denied': 'denied' as QuoteStatus,
     'Cancelled': 'denied' as QuoteStatus,
-    'Open': 'pending' as QuoteStatus,
-    'In Progress': 'processing' as QuoteStatus,
     'Completed': 'approved' as QuoteStatus,
     'Closed': 'approved' as QuoteStatus,
   },
@@ -93,8 +91,8 @@ export class DataMappingService {
     
     const quote: QuoteRequest = {
       id: task.task_id.toString(),
-      clientName: this.cleanString(clientName),
-      clientEmail: this.cleanString(clientEmail),
+      clientName: this.cleanString(getFieldValue(['Customer.Name'])),
+      clientEmail: this.cleanString(getFieldValue(['Customer.Email'])),
       clientPhone: this.cleanString(getFieldValue(['Customer.Phone', 'customer_phone', 'phone'])),
       projectType: this.cleanString(projectType),
       projectDescription: this.cleanString(projectDescription),
