@@ -1,4 +1,4 @@
-// src/services/hisafeApi.ts - Fixed version with token authentication
+// src/services/hisafeApi.ts - Fixed version with proper authentication and error handling
 
 // Helper functions for PKCE
 function encodeBase64Url(value: Uint8Array): string {
@@ -60,8 +60,16 @@ class HiSAFEApiService {
     };
 
     if (!this.config.clientId) {
-      console.error('VITE_HISAFE_CLIENT_ID is not set in environment variables');
+      console.warn('VITE_HISAFE_CLIENT_ID is not set in environment variables');
     }
+
+    console.log('HiSAFE Config:', {
+      baseUrl: this.config.baseUrl,
+      clientId: this.config.clientId ? `${this.config.clientId.substring(0, 8)}...` : 'NOT SET',
+      portalSlug: this.config.portalSlug,
+      featureType: this.config.featureType,
+      apiVersion: this.config.apiVersion
+    });
   }
 
   private getApiUrl(path: string): string {
@@ -99,12 +107,16 @@ class HiSAFEApiService {
   }
 
   async initAuth(): Promise<boolean> {
+    console.log('Initializing HiSAFE authentication...');
+    
     // Check for auth code in URL (returning from OAuth)
     const params = new URLSearchParams(location.search);
     const authCode = params.get('code');
     const state = params.get('state');
     
     if (authCode && state) {
+      console.log('Found auth code in URL, exchanging for token...');
+      
       // Clean up URL first
       params.delete('code');
       params.delete('state');
@@ -115,7 +127,7 @@ class HiSAFEApiService {
         // Exchange code for token
         const codeVerifier = sessionStorage.getItem(CODE_VERIFIER_SESSION_STORAGE_KEY + state);
         if (!codeVerifier) {
-          throw new Error('Code verifier not found');
+          throw new Error('Code verifier not found in session storage');
         }
 
         const tokenResponse = await this.exchangeCodeForToken(authCode, codeVerifier);
@@ -131,6 +143,7 @@ class HiSAFEApiService {
         
         // Test the token
         await this.testAuth();
+        console.log('Authentication successful!');
         return true;
         
       } catch (error) {
@@ -144,9 +157,11 @@ class HiSAFEApiService {
 
     // Check if we have a stored token
     if (this.hasValidToken()) {
+      console.log('Found stored token, testing...');
       this.setAuthHeader();
       try {
         await this.testAuth();
+        console.log('Stored token is valid');
         return true;
       } catch (error) {
         console.log('Stored token invalid, re-authenticating...');
@@ -155,6 +170,7 @@ class HiSAFEApiService {
     }
 
     // Need to authenticate
+    console.log('No valid token found, redirecting to auth...');
     await this.redirectToAuth();
     return false;
   }
@@ -165,11 +181,13 @@ class HiSAFEApiService {
       ["feature", this.config.portalSlug]
     ]);
 
-    const response = await fetch(this.getApiUrl("oauth2/token?" + alwaysAddParams), {
+    const tokenUrl = this.getApiUrl("oauth2/token?" + alwaysAddParams);
+    console.log('Exchanging code for token at:', tokenUrl);
+
+    const response = await fetch(tokenUrl, {
       method: "POST",
       mode: "cors",
       cache: "no-cache",
-      // Remove credentials: 'include' - use token instead
       headers: {
         "Content-Type": "application/json"
       },
@@ -184,13 +202,21 @@ class HiSAFEApiService {
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('Token exchange failed:', response.status, errorText);
       throw new Error(`Token exchange failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const tokenData = await response.json();
+    console.log('Successfully obtained token');
+    return tokenData;
   }
 
   private async redirectToAuth(): Promise<void> {
+    if (!this.config.clientId) {
+      throw new Error('Client ID is required for authentication. Please check your environment variables.');
+    }
+
     const codeVerifier = generateRandomBase64Url(64);
     const codeChallenge = await generateCodeChallenge(codeVerifier);
     const state = generateRandomBase64Url(8);
@@ -201,7 +227,7 @@ class HiSAFEApiService {
     const params = new URLSearchParams([
       ['feature_type', this.config.featureType],
       ['feature_key', this.config.portalSlug],
-      ['response_type', 'code'], // Use authorization code flow
+      ['response_type', 'code'],
       ['client_id', this.config.clientId],
       ['redirect_uri', location.href],
       ['code_challenge_method', 'S256'],
@@ -209,7 +235,9 @@ class HiSAFEApiService {
       ['state', state],
     ]);
 
-    location.href = this.getApiUrl('oauth2/authorize?' + params.toString());
+    const authUrl = this.getApiUrl('oauth2/authorize?' + params.toString());
+    console.log('Redirecting to auth URL:', authUrl);
+    location.href = authUrl;
   }
 
   private async testAuth(): Promise<any> {
@@ -222,7 +250,6 @@ class HiSAFEApiService {
       method: 'GET',
       mode: 'cors',
       cache: 'no-cache',
-      // Remove credentials: 'include' - use Authorization header instead
       headers: this.headers,
       redirect: 'follow',
       referrerPolicy: 'no-referrer'
@@ -232,7 +259,9 @@ class HiSAFEApiService {
       throw new Error(`Auth test failed: ${response.statusText}`);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log('Auth test successful:', result);
+    return result;
   }
 
   // Generic API request method
@@ -241,12 +270,6 @@ class HiSAFEApiService {
     if (!isAuthenticated) {
       throw new Error('Authentication required');
     }
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("API Error Response:", errorText);
-      throw new Error(errorText || `Request failed: ${response.statusText}`);
-    }
-
 
     const alwaysAddParams = new URLSearchParams([
       ["featureType", this.config.featureType],
@@ -256,12 +279,12 @@ class HiSAFEApiService {
     const separator = url.includes('?') ? '&' : '?';
     const fullUrl = this.getApiUrl(url) + separator + alwaysAddParams;
 
-    console.log(`Hitting API [${method}]:`, fullUrl);
+    console.log(`Making API request [${method}]:`, fullUrl);
+    
     const response = await fetch(fullUrl, {
       method,
       mode: 'cors',
       cache: 'no-cache',
-      // Remove credentials: 'include' - use Authorization header
       headers: this.headers,
       redirect: 'follow',
       referrerPolicy: 'no-referrer',
@@ -269,16 +292,19 @@ class HiSAFEApiService {
     });
 
     if (response.status === 401) {
+      console.log('Got 401, token expired. Re-authenticating...');
       // Token expired, re-authenticate
       localStorage.removeItem(TOKEN_LOCAL_STORAGE_KEY);
-      location.href = await this.redirectToAuth();
+      await this.redirectToAuth();
       throw new Error('Authentication expired');
     }
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error("API Error Response:", errorText);
+      
       let errorMessage = `Request failed: ${response.statusText}`;
       try {
-        const errorText = await response.text();
         if (errorText.startsWith('{')) {
           const errorJson = JSON.parse(errorText);
           if (errorJson.message) {
@@ -291,7 +317,9 @@ class HiSAFEApiService {
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    const result = await response.json();
+    console.log(`API request successful [${method}]:`, result);
+    return result;
   }
 
   // Get portal metadata
@@ -299,11 +327,15 @@ class HiSAFEApiService {
     return this.request('GET', 'portal/metadata');
   }
 
-  // Load portal dashboard data (gets tasks)
-  async loadPortalData(seriesIds: string[] = []) {
-   // const params = new URLSearchParams();
-  //  seriesIds.forEach(id => params.append('seriesId', id));
-    return this.request('GET', `portal/load?${params}`);
+  // Load portal dashboard data (gets tasks) - FIXED: Added proper params handling
+  async loadPortalData(seriesIds: string[] = []): Promise<any> {
+    const params = new URLSearchParams();
+    seriesIds.forEach(id => params.append('seriesId', id));
+    
+    const queryString = params.toString();
+    const endpoint = queryString ? `portal/load?${queryString}` : 'portal/load';
+    
+    return this.request('GET', endpoint);
   }
 
   // Get task metadata for a specific form
@@ -336,18 +368,35 @@ class HiSAFEApiService {
   // Helper method to get all tasks (quotes) with proper error handling
   async getAllTasks(): Promise<HiSAFETask[]> {
     try {
-      const portalData = await this.loadPortalData();
+      console.log('Loading all tasks from HiSAFE...');
+      
+      // First try to load portal data with specific series IDs
+      let portalData;
+      try {
+        portalData = await this.loadPortalData(['1', '2', '3']);
+      } catch (error) {
+        console.warn('Failed to load with specific series IDs, trying without:', error);
+        portalData = await this.loadPortalData();
+      }
+      
+      console.log('Portal data loaded:', portalData);
       
       // Extract tasks from the response structure
       const allTasks: HiSAFETask[] = [];
       
-      // Process each series (form) data
-      Object.entries(portalData).forEach(([seriesId, componentData]: [string, any]) => {
-        if (componentData.type === 'list' && componentData.listResult) {
-          allTasks.push(...componentData.listResult);
-        }
-      });
+      if (portalData && typeof portalData === 'object') {
+        // Process each series (form) data
+        Object.entries(portalData).forEach(([seriesId, componentData]: [string, any]) => {
+          console.log(`Processing series ${seriesId}:`, componentData);
+          
+          if (componentData && componentData.type === 'list' && componentData.listResult) {
+            console.log(`Found ${componentData.listResult.length} tasks in series ${seriesId}`);
+            allTasks.push(...componentData.listResult);
+          }
+        });
+      }
       
+      console.log(`Total tasks loaded: ${allTasks.length}`);
       return allTasks;
     } catch (error) {
       console.error('Failed to get all tasks:', error);
@@ -355,18 +404,35 @@ class HiSAFEApiService {
     }
   }
 
+  // Test connection without full auth flow
+  async testConnection(): Promise<boolean> {
+    try {
+      console.log('Testing HiSAFE connection...');
+      const metadata = await this.getPortalMetadata();
+      console.log('Connection test successful:', metadata);
+      return true;
+    } catch (error) {
+      console.error('Connection test failed:', error);
+      return false;
+    }
+  }
+
   // Logout method
   logout(): void {
+    console.log('Logging out of HiSAFE...');
     localStorage.removeItem(TOKEN_LOCAL_STORAGE_KEY);
     delete this.headers["Authorization"];
-    // Optionally redirect to login
-    // location.reload();
+    
+    // Clear all session storage items related to auth
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith(CODE_VERIFIER_SESSION_STORAGE_KEY)) {
+        sessionStorage.removeItem(key);
+      }
+    });
   }
 }
 
 // Create and export service instance
 export const hisafeApi = new HiSAFEApiService();
 export default hisafeApi;
-
-
 
