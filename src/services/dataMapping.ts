@@ -13,8 +13,8 @@ export const FIELD_MAPPINGS = {
   estimatedCost: ['Quote Total', 'quote_total', 'total', 'cost', 'amount', 'price'],
   
   // System fields
-  status: ['Status', 'status', 'task_status'],
-  createdDate: ['created_date', 'created_at', 'date_created'],
+  status: ['status'],
+  createdDate: ['post_date'],
   updatedDate: ['updated_date', 'updated_at', 'date_updated', 'last_modified'],
 };
 
@@ -75,7 +75,11 @@ export class DataMappingService {
     
     // Map status with fallback
      let rawStatus = getFieldValue(FIELD_MAPPINGS.status);
-
+        console.log('DEBUG STATUS:', {
+        rawStatus,
+        type: typeof rawStatus,
+        taskStatus: task.status
+          });
       if (!rawStatus && task.status) {
       rawStatus = typeof task.status === 'string' ? task.status : task.status.name;
       }
