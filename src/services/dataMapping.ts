@@ -73,16 +73,22 @@ export class DataMappingService {
       return defaultValue;
     };
     
-        // FIXED STATUS MAPPING LOGIC
+         // FIXED STATUS MAPPING LOGIC
     let rawStatus = getFieldValue(FIELD_MAPPINGS.status);
     console.log('DEBUG STATUS - Step 1 - rawStatus from fields:', rawStatus);
+    
+    // Extract the status name from the object if needed
+    if (rawStatus && typeof rawStatus === 'object' && rawStatus.name) {
+      rawStatus = rawStatus.name;
+      console.log('DEBUG STATUS - Step 1.5 - extracted status name from object:', rawStatus);
+    }
     
     // If no status in fields, check task.status object
     if (!rawStatus && task.status) {
       if (typeof task.status === 'string') {
         rawStatus = task.status;
       } else if (task.status.name) {
-        rawStatus = task.status.name; // This is the key fix!
+        rawStatus = task.status.name;
       }
     }
     console.log('DEBUG STATUS - Step 2 - rawStatus after task.status check:', rawStatus);
@@ -95,7 +101,7 @@ export class DataMappingService {
     
     // Map to your app's status
     const mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus] || 'pending';
-    console.log('DEBUG STATUS - Step 4 - mappedStatus:', mappedStatus);
+    console.log('DEBUG STATUS - Step 4 - mappedStatus:', mappedStatus, 'from rawStatus:', rawStatus);
     
     // Get client name - try multiple possible field names
     const clientName = getFieldValue(FIELD_MAPPINGS.clientName) || `Customer ${task.task_id}`;
