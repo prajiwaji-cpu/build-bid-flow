@@ -8,12 +8,11 @@ export const FIELD_MAPPINGS = {
   clientName: ['Customer.Name', 'customer_name', 'name', 'client_name', 'Name'],
   clientEmail: ['Customer.E-mail Address', 'customer_email', 'email', 'client_email', 'Email'], 
   projectType: ['Task Form', 'task_form', 'project_type', 'type', 'form_name'],
-  projectDescription: ['Item/Part Name', 'item_part_name', 'description', 'project_description', 'details', 'summary'],
+  projectDescription: ['Item/Part Name', 'item_part_name', 'brief_description', 'project_description', 'details', 'summary'],
   estimatedNeedByDate: ['Estimated Need by Date', 'need_by_date', 'timeline', 'due_date', 'deadline'],
   estimatedCost: ['Quote Total', 'quote_total', 'total', 'cost', 'amount', 'price'],
   
-  // System fields - Status ID takes priority
-  statusId: ['status_id', 'Status ID', 'statusId', 'task_status_id'],
+  // System fields
   status: ['Status', 'status', 'task_status'],
   createdDate: ['created_date', 'created_at', 'date_created'],
   updatedDate: ['updated_date', 'updated_at', 'date_updated', 'last_modified'],
@@ -21,59 +20,18 @@ export const FIELD_MAPPINGS = {
 
 // Status mapping between your app and HiSAFE
 export const STATUS_MAPPINGS = {
-  // HiSAFE status ID -> Your app status (PRIMARY - more reliable)
-  fromHiSAFEById: {
-    // Common HiSafe status IDs (you may need to adjust these based on your system)
-   
-    '3': 'approved' as QuoteStatus,     // Typically Quote Complete
-    '4': 'processing' as QuoteStatus,       // Typically Awaiting Quote Generation
-    '5': 'pending' as QuoteStatus,   // Often Awaiting Approval
-   
-  },
-  
-  // HiSAFE status name -> Your app status (FALLBACK)
-  fromHiSAFEByName: {
-    // Common HiSafe status variations
+  // HiSAFE status name -> Your app status
+  fromHiSAFE: {
     'Awaiting Approval': 'pending' as QuoteStatus,
     'Awaiting Quote Generation': 'processing' as QuoteStatus,
     'Work in Progress': 'processing' as QuoteStatus,
     'Quote Complete': 'approved' as QuoteStatus,
     'Quote Denied': 'denied' as QuoteStatus,
     'Cancelled': 'denied' as QuoteStatus,
-    'Open': 'pending' as QuoteStatus,
-    'In Progress': 'processing' as QuoteStatus,
     'Completed': 'approved' as QuoteStatus,
     'Closed': 'approved' as QuoteStatus,
-    
-    // Additional common status variations
-    'New': 'pending' as QuoteStatus,
-    'Pending': 'pending' as QuoteStatus,
-    'Draft': 'pending' as QuoteStatus,
-    'Submitted': 'pending' as QuoteStatus,
-    'Under Review': 'processing' as QuoteStatus,
-    'In Review': 'processing' as QuoteStatus,
-    'Processing': 'processing' as QuoteStatus,
-    'Active': 'processing' as QuoteStatus,
-    'Approved': 'approved' as QuoteStatus,
-    'Complete': 'approved' as QuoteStatus,
-    'Done': 'approved' as QuoteStatus,
-    'Finished': 'approved' as QuoteStatus,
-    'Rejected': 'denied' as QuoteStatus,
-    'Denied': 'denied' as QuoteStatus,
-    'Declined': 'denied' as QuoteStatus,
-    
-    // Task status variations (common in task management systems)
-    'To Do': 'pending' as QuoteStatus,
-    'Todo': 'pending' as QuoteStatus,
-    'Doing': 'processing' as QuoteStatus,
-    'In Process': 'processing' as QuoteStatus,
-    'Review': 'processing' as QuoteStatus,
-    'Testing': 'processing' as QuoteStatus,
-    'Ready': 'approved' as QuoteStatus,
-    'Verified': 'approved' as QuoteStatus,
   },
-  
-  // Your app status -> HiSAFE status name  
+  // Your app status -> HiSAFE status name
   toHiSAFE: {
     'pending': 'Awaiting Approval',
     'processing': 'Awaiting Quote Generation', 
@@ -133,8 +91,8 @@ export class DataMappingService {
     
     const quote: QuoteRequest = {
       id: task.task_id.toString(),
-      clientName: this.cleanString(clientName),
-      clientEmail: this.cleanString(clientEmail),
+      clientName: this.cleanString(getFieldValue(['Customer.Name'])),
+      clientEmail: this.cleanString(getFieldValue(['Customer.Email'])),
       clientPhone: this.cleanString(getFieldValue(['Customer.Phone', 'customer_phone', 'phone'])),
       projectType: this.cleanString(projectType),
       projectDescription: this.cleanString(projectDescription),
@@ -329,50 +287,6 @@ export class DataMappingService {
   private static isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
-  }
-  
-  // New method to detect status values automatically
-  static analyzeStatusValues(tasks: HiSAFETask[]): { ids: Record<string, number>, names: Record<string, number> } {
-    const statusIdCounts: Record<string, number> = {};
-    const statusNameCounts: Record<string, number> = {};
-    
-    tasks.forEach(task => {
-      const fields = task.fields || {};
-      
-      // Check for status IDs
-      const possibleStatusIds = [
-        fields['status_id'],
-        fields['Status ID'], 
-        fields['statusId'],
-        fields['task_status_id']
-      ].filter(val => val !== undefined && val !== null && val !== '');
-      
-      possibleStatusIds.forEach(statusId => {
-        const statusStr = String(statusId);
-        statusIdCounts[statusStr] = (statusIdCounts[statusStr] || 0) + 1;
-      });
-      
-      // Check for status names
-      const possibleStatusNames = [
-        fields['Status'],
-        fields['status'], 
-        fields['task_status'],
-        fields['Task Status'],
-        task.status,
-        fields['state'],
-        fields['State']
-      ].filter(val => val !== undefined && val !== null && val !== '');
-      
-      possibleStatusNames.forEach(status => {
-        const statusStr = String(status);
-        statusNameCounts[statusStr] = (statusNameCounts[statusStr] || 0) + 1;
-      });
-    });
-    
-    return {
-      ids: statusIdCounts,
-      names: statusNameCounts
-    };
   }
   
   // Debug helper to inspect HiSAFE data structure
