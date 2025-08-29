@@ -1,126 +1,125 @@
-// src/services/quotesService.ts - Working version using direct task access
+// src/services/quotesService.ts - Using the same method as ExamplePresentation
 import { QuoteRequest, QuoteStatus } from '@/types/quote';
 import { hisafeApi, HiSAFETask } from './hisafeApi';
 import DataMappingService from './dataMapping';
 
 export class QuotesService {
   
-  // Get all quotes from HiSAFE - using hybrid approach
+  // Get all quotes from HiSAFE - using the EXACT same method as ExamplePresentation
   async getAllQuotes(): Promise<QuoteRequest[]> {
     try {
-      console.log('🔄 Loading quotes using hybrid approach...');
+      console.log('🔄 Loading quotes using portal method like ExamplePresentation...');
       
-      // Since portal/load is broken, we need alternative approaches
-      // Based on your diagnostic, we know:
-      // 1. Direct task access works (task 434 loaded successfully)
-      // 2. Portal metadata works (shows series 50)
-      // 3. Portal load fails with 500 error
+      // Step 1: Get portal metadata to find available series IDs (just like ExamplePresentation)
+      const metadata = await hisafeApi.getPortalMetadata();
+      console.log('Portal metadata:', metadata);
       
-      const allQuotes: QuoteRequest[] = [];
-      
-      // Approach 1: Try to get task list from portal metadata and series info
-      try {
-        console.log('📋 Getting portal metadata for task discovery...');
-        const metadata = await hisafeApi.getPortalMetadata();
-        console.log('Portal metadata:', metadata);
-        
-        // Look for series with ID 50 (from your diagnostic)
-        const dashboardComponents = metadata.dashboardComponents || [];
-        let taskIds: number[] = [];
-        
-        // Try to extract task IDs from series configuration or any other available data
-        for (const component of dashboardComponents) {
-          if (component.type === 'list' && component.series) {
+      // Step 2: Extract series IDs from dashboard components
+      const seriesIds: string[] = [];
+      if (metadata.dashboardComponents) {
+        for (const component of metadata.dashboardComponents) {
+          if (component.series) {
             for (const series of component.series) {
-              if (series.id === 50) {
-                console.log(`📊 Found target series ${series.id}`);
-                
-                // Since we can't load the portal data directly, we'll try some common task IDs
-                // Based on your data, task 434 exists, so let's try a range around it
-                const baseTaskId = 434;
-                const taskRange = 20; // Try 20 tasks before and after 434
-                
-                for (let offset = -taskRange; offset <= taskRange; offset++) {
-                  const candidateId = baseTaskId + offset;
-                  if (candidateId > 0) { // Only positive IDs
-                    taskIds.push(candidateId);
-                  }
-                }
-                break;
+              if (series.id) {
+                seriesIds.push(series.id.toString());
               }
             }
           }
         }
-        
-        console.log(`🎯 Will attempt to load ${taskIds.length} potential task IDs:`, taskIds.slice(0, 10), '...');
-        
-        // Try to load each task directly
-        let successCount = 0;
-        let failCount = 0;
-        
-        for (const taskId of taskIds) {
-          try {
-            console.log(`🔍 Attempting to load task ${taskId}...`);
-            const task = await hisafeApi.getTask(taskId);
-            
-            // Map the task to a quote
-            const quote = DataMappingService.mapTaskToQuote(task);
-            allQuotes.push(quote);
-            successCount++;
-            
-            console.log(`✅ Successfully loaded and mapped task ${taskId}`);
-            
-          } catch (taskError) {
-            failCount++;
-            // Task doesn't exist or can't be accessed - this is normal
-            if (taskError.message.includes('404') || taskError.message.includes('Not Found')) {
-              // Silently skip missing tasks
-            } else {
-              console.log(`⚠️ Task ${taskId} failed with error:`, taskError.message);
-            }
-          }
-        }
-        
-        console.log(`📊 Task loading results: ${successCount} successful, ${failCount} failed/missing`);
-        
-      } catch (metadataError) {
-        console.error('❌ Failed to use metadata approach:', metadataError);
       }
       
-      // Approach 2: If we didn't get many results, try some known task patterns
-      if (allQuotes.length < 5) {
-        console.log('🎯 Trying additional task ID patterns...');
-        
-        // Try some common task ID patterns
-        const additionalTaskIds = [
-          // Around your known task 434
-          430, 431, 432, 433, 434, 435, 436, 437, 438, 439, 440,
-          // Some other common ranges
-          1, 2, 3, 4, 5, 10, 15, 20, 25, 30, 50, 100, 200, 300, 400, 500
-        ];
-        
-        for (const taskId of additionalTaskIds) {
-          // Skip if we already tried this task
-          if (allQuotes.find(q => q.id === taskId.toString())) {
-            continue;
+      console.log('📊 Found series IDs in metadata:', seriesIds);
+      
+      // If no series found in metadata, use the one we know from diagnostics
+      if (seriesIds.length === 0) {
+        seriesIds.push('50'); // From your diagnostic results
+        console.log('⚠️ No series found in metadata, using known series 50');
+      }
+      
+      // Step 3: Load portal data for each series (same as ExamplePresentation does)
+      const allQuotes: QuoteRequest[] = [];
+      
+      for (const seriesId of seriesIds) {
+        try {
+          console.log(`🎯 Loading portal data for series ${seriesId}...`);
+          
+          // Call loadPortalData with specific series ID (just like ApiClient.getPortalData)
+          const portalData = await hisafeApi.loadPortalData([seriesId]);
+          console.log(`✅ Portal data loaded for series ${seriesId}:`, portalData);
+          
+          // Step 4: Process the results (same structure as your working version)
+          if (portalData && typeof portalData === 'object') {
+            Object.entries(portalData).forEach(([returnedSeriesId, componentData]: [string, any]) => {
+              console.log(`📊 Processing returned series ${returnedSeriesId}:`, componentData);
+              
+              if (componentData && componentData.type === 'list' && componentData.listResult) {
+                console.log(`📝 Found ${componentData.listResult.length} tasks in series ${returnedSeriesId}`);
+                
+                // Process each task
+                componentData.listResult.forEach((task: any, index: number) => {
+                  try {
+                    // Map the task to a quote (same as before)
+                    const mappedQuote = DataMappingService.mapTaskToQuote(task);
+                    allQuotes.push(mappedQuote);
+                    console.log(`✅ Mapped task ${task.task_id} successfully`);
+                  } catch (mappingError) {
+                    console.error(`❌ Failed to map task ${task.task_id}:`, mappingError);
+                    DataMappingService.debugTaskStructure(task);
+                    
+                    // Create fallback quote
+                    try {
+                      const fallbackQuote: QuoteRequest = {
+                        id: task.task_id?.toString() || `fallback-${index}`,
+                        clientName: task.brief_description || `Task ${task.task_id}`,
+                        clientEmail: 'unknown@example.com',
+                        clientPhone: '',
+                        projectType: 'General',
+                        projectDescription: task.brief_description || 'Project details not available',
+                        budget: '',
+                        timeline: task.due_date || '',
+                        location: '',
+                        status: this.mapStatus(task.status?.name || 'pending'),
+                        submittedAt: task.created_date || new Date().toISOString(),
+                        updatedAt: task.updated_date || task.created_date || new Date().toISOString(),
+                        estimatedCost: undefined,
+                        notes: `Fallback mapping - Task ID: ${task.task_id}`,
+                        comments: []
+                      };
+                      allQuotes.push(fallbackQuote);
+                      console.log(`⚠️ Added fallback quote for task ${task.task_id}`);
+                    } catch (fallbackError) {
+                      console.error(`💥 Complete failure for task ${task.task_id}:`, fallbackError);
+                    }
+                  }
+                });
+              } else {
+                console.log(`ℹ️ Series ${returnedSeriesId} does not contain list data:`, componentData);
+              }
+            });
           }
           
-          try {
-            const task = await hisafeApi.getTask(taskId);
-            const quote = DataMappingService.mapTaskToQuote(task);
-            
-            // Check if this quote is already in our list (avoid duplicates)
-            if (!allQuotes.find(q => q.id === quote.id)) {
-              allQuotes.push(quote);
-              console.log(`✅ Found additional task ${taskId}`);
-            }
-          } catch (error) {
-            // Silently skip missing tasks
-          }
+        } catch (seriesError) {
+          console.error(`❌ Failed to load portal data for series ${seriesId}:`, seriesError);
+          // Continue to next series
         }
       }
       
-      console.log(`🎉 Successfully loaded ${allQuotes.length} quotes using hybrid approach`);
+      // Step 5: Validate we got the expected task IDs
+      const expectedTaskIds = [1, 2, 3, 5, 7, 421, 431, 433, 434];
+      const foundTaskIds = allQuotes.map(q => parseInt(q.id)).sort((a, b) => a - b);
+      const missingTaskIds = expectedTaskIds.filter(id => !foundTaskIds.includes(id));
+      
+      console.log(`📊 Expected task IDs: ${expectedTaskIds.join(', ')}`);
+      console.log(`📊 Found task IDs: ${foundTaskIds.join(', ')}`);
+      if (missingTaskIds.length > 0) {
+        console.log(`⚠️ Missing task IDs: ${missingTaskIds.join(', ')}`);
+      }
+      
+      console.log(`🎉 Successfully loaded ${allQuotes.length} quotes using portal method`);
+      
+      // Sort quotes by ID for consistent display
+      allQuotes.sort((a, b) => parseInt(a.id) - parseInt(b.id));
+      
       return allQuotes;
       
     } catch (error) {
@@ -129,7 +128,23 @@ export class QuotesService {
     }
   }
   
-  // Get a single quote by ID - this works perfectly from diagnostics
+  // Helper to map HiSAFE status to our status
+  private mapStatus(hisafeStatus: string): QuoteStatus {
+    const statusMappings = {
+      'Quote Complete': 'approved',
+      'Awaiting Approval': 'pending',
+      'Work in Progress': 'processing',
+      'Awaiting Quote Generation': 'processing',
+      'Quote Denied': 'denied',
+      'Cancelled': 'denied',
+      'Completed': 'approved',
+      'Closed': 'approved'
+    } as const;
+    
+    return statusMappings[hisafeStatus as keyof typeof statusMappings] || 'pending';
+  }
+  
+  // Get a single quote by ID
   async getQuote(quoteId: string): Promise<QuoteRequest | null> {
     try {
       const taskId = parseInt(quoteId);
@@ -170,7 +185,7 @@ export class QuotesService {
         // Try to update HiSAFE with the comment
         const serializedComments = DataMappingService.serializeCommentsForHiSAFE(updatedQuote.comments);
         
-        // Based on the task structure you showed, try multiple field names
+        // Try multiple field names for storing comments
         const fieldsToUpdate: Record<string, any> = {
           'Comments': serializedComments,
           'comments': serializedComments,
@@ -179,9 +194,8 @@ export class QuotesService {
           'Internal Comments': serializedComments,
           'Last Comment': `${author}: ${commentText}`,
           'Last Updated': new Date().toISOString(),
-          // Try some other common field names
-          'Remarks': `${author}: ${commentText}`,
-          'Activity Log': serializedComments
+          'Activity': `Comment added by ${author}: ${commentText}`,
+          'Remarks': `${author}: ${commentText}`
         };
         
         await hisafeApi.updateTask(taskId, fieldsToUpdate);
@@ -189,7 +203,6 @@ export class QuotesService {
         
       } catch (updateError) {
         console.warn(`⚠️ Failed to update HiSAFE task ${taskId}, but comment added locally:`, updateError.message);
-        // Comment is still added locally, which is better than complete failure
       }
       
       return updatedQuote;
@@ -221,7 +234,7 @@ export class QuotesService {
         // Map to HiSAFE status and update
         const statusMappings = {
           'pending': 'Awaiting Approval',
-          'processing': 'Work in Progress',
+          'processing': 'Work in Progress', 
           'approved': 'Quote Complete',
           'denied': 'Quote Denied'
         };
@@ -233,7 +246,6 @@ export class QuotesService {
         }
       } catch (updateError) {
         console.warn(`⚠️ Failed to update HiSAFE status for task ${taskId}:`, updateError.message);
-        // Status is still updated locally
       }
       
       return updatedQuote;
@@ -292,7 +304,7 @@ export class QuotesService {
     }
   }
   
-  // Search quotes by text
+  // Search quotes
   async searchQuotes(searchTerm: string): Promise<QuoteRequest[]> {
     const allQuotes = await this.getAllQuotes();
     const term = searchTerm.toLowerCase();
@@ -305,7 +317,7 @@ export class QuotesService {
     );
   }
   
-  // Test connection - we know this works from diagnostics
+  // Test connection
   async testConnection(): Promise<boolean> {
     try {
       await hisafeApi.initAuth();
@@ -318,27 +330,32 @@ export class QuotesService {
     }
   }
   
-  // Discover more tasks by trying sequential IDs around known good ones
-  async discoverAdditionalTasks(knownTaskId: number = 434, range: number = 50): Promise<number[]> {
-    const foundTaskIds: number[] = [];
+  // Debug method - test if we can load the expected task IDs
+  async debugExpectedTasks(): Promise<void> {
+    const expectedTaskIds = [1, 2, 3, 5, 7, 421, 431, 433, 434];
     
-    console.log(`🔍 Discovering tasks around ${knownTaskId} with range ${range}...`);
+    console.group('🔬 Testing Expected Task IDs');
     
-    for (let offset = -range; offset <= range; offset++) {
-      const taskId = knownTaskId + offset;
-      if (taskId <= 0) continue; // Skip negative/zero IDs
-      
+    for (const taskId of expectedTaskIds) {
       try {
-        await hisafeApi.getTask(taskId);
-        foundTaskIds.push(taskId);
-        console.log(`✅ Found task ${taskId}`);
+        const task = await hisafeApi.getTask(taskId);
+        console.log(`✅ Task ${taskId}: ACCESSIBLE`, {
+          brief_description: task.brief_description || task.fields?.brief_description,
+          status: task.status?.name || task.fields?.status?.name,
+          due_date: task.due_date || task.fields?.due_date
+        });
       } catch (error) {
-        // Task doesn't exist, skip silently
+        if (error.message.includes('403')) {
+          console.log(`❌ Task ${taskId}: EXISTS but not in portal scope`);
+        } else if (error.message.includes('404')) {
+          console.log(`ℹ️ Task ${taskId}: DOESN'T EXIST`);
+        } else {
+          console.log(`⚠️ Task ${taskId}: ERROR - ${error.message}`);
+        }
       }
     }
     
-    console.log(`🎉 Discovered ${foundTaskIds.length} tasks:`, foundTaskIds);
-    return foundTaskIds;
+    console.groupEnd();
   }
 }
 
