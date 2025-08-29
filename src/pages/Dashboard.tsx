@@ -1,31 +1,38 @@
-// src/pages/Dashboard.tsx - Enhanced with better debugging
-import { useState, useEffect } from 'react';
-import { QuoteCard } from '@/components/QuoteCard';
+// src/pages/Dashboard.tsx - Updated with comment functionality
+import React, { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { QuoteRequest, QuoteStatus } from '@/types/quote';
-import { Plus, Building2, Users, Clock, CheckCircle, AlertCircle, RefreshCw, Bug } from 'lucide-react';
+import { QuoteCard } from '@/components/QuoteCard';
+import { CommentDialog } from '@/components/CommentDialog'; // Import the new dialog
 import { useToast } from '@/hooks/use-toast';
-import hisafeApi from '@/services/hisafeApi';
+import { QuoteRequest, QuoteStatus } from '@/types/quote';
+import { quotesService } from '@/services/quotesService';
 import DataMappingService from '@/services/dataMapping';
+import { 
+  RefreshCw, 
+  Building2, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle, 
+  DollarSign,
+  Bug
+} from 'lucide-react';
 
-interface DashboardProps {
-  viewMode?: 'client' | 'contractor';
-}
-
-export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
+export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor' | 'customer' }) {
   const [quotes, setQuotes] = useState<QuoteRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState('all');
-  const [debugInfo, setDebugInfo] = useState<any>(null);
-  const [rawTasksData, setRawTasksData] = useState<any[]>([]);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
+  const [rawTasksData, setRawTasksData] = useState<any[]>([]);
+  const [debugInfo, setDebugInfo] = useState<any>(null);
+  
+  // Comment dialog state
+  const [commentDialogOpen, setCommentDialogOpen] = useState(false);
+  const [selectedQuoteForComment, setSelectedQuoteForComment] = useState<QuoteRequest | null>(null);
+  
   const { toast } = useToast();
 
-  // Load quotes from HiSAFE on component mount
   useEffect(() => {
     loadQuotesFromHiSAFE();
   }, []);
@@ -34,167 +41,30 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
     try {
       setLoading(true);
       setError(null);
-      setDebugInfo(null);
-
-      console.log('🚀 Starting to load quotes from HiSAFE...');
-
-      // First, get the portal metadata to understand what's available
-      let portalMetadata;
-      try {
-        console.log('📋 Loading portal metadata...');
-        portalMetadata = await hisafeApi.getPortalMetadata();
-        console.log('✅ Portal metadata loaded:', portalMetadata);
-        setDebugInfo(prev => ({ ...prev, metadata: portalMetadata }));
-      } catch (metadataError) {
-        console.warn('⚠️ Failed to load portal metadata, continuing anyway:', metadataError);
-      }
-
-      // Extract available series/form IDs from metadata if available
-      let availableSeriesIds: string[] = [];
-      if (portalMetadata?.dashboardComponents) {
-        portalMetadata.dashboardComponents.forEach((component: any) => {
-          if (component.series) {
-            component.series.forEach((series: any) => {
-              if (series.id && !availableSeriesIds.includes(series.id.toString())) {
-                availableSeriesIds.push(series.id.toString());
-              }
-            });
-          }
-        });
-      }
-
-      console.log('🔢 Available series IDs from metadata:', availableSeriesIds);
-
-      // Try different approaches to load portal data
-      let portalData;
-      let loadingAttempts = [];
-
-      // Approach 1: Try with no series IDs (load all)
-      try {
-        console.log('🎯 Attempt 1: Loading portal data with no series IDs...');
-        portalData = await hisafeApi.loadPortalData();
-        console.log('✅ Success - portal data loaded without series IDs:', portalData);
-        loadingAttempts.push({ approach: 'No series IDs', success: true, data: portalData });
-      } catch (error1) {
-        console.log('❌ Attempt 1 failed:', error1.message);
-        loadingAttempts.push({ approach: 'No series IDs', success: false, error: error1.message });
-
-        // Approach 2: Try with metadata-discovered series IDs
-        if (availableSeriesIds.length > 0) {
-          try {
-            console.log(`🎯 Attempt 2: Loading portal data with discovered series IDs: ${availableSeriesIds.join(', ')}`);
-            portalData = await hisafeApi.loadPortalData(availableSeriesIds);
-            console.log('✅ Success - portal data loaded with discovered series IDs:', portalData);
-            loadingAttempts.push({ approach: 'Discovered series IDs', success: true, data: portalData });
-          } catch (error2) {
-            console.log('❌ Attempt 2 failed:', error2.message);
-            loadingAttempts.push({ approach: 'Discovered series IDs', success: false, error: error2.message });
-          }
-        }
-
-        // Approach 3: Try with common series IDs one by one
-        if (!portalData) {
-          const commonSeriesIds = ['1', '2', '3', '4', '5', '50'];
-          for (const seriesId of commonSeriesIds) {
-            try {
-              console.log(`🎯 Attempt 3.${seriesId}: Loading portal data with series ID: ${seriesId}`);
-              const singleSeriesData = await hisafeApi.loadPortalData([seriesId]);
-              console.log(`✅ Success - portal data loaded with series ID ${seriesId}:`, singleSeriesData);
-              
-              if (!portalData) {
-                portalData = singleSeriesData;
-              } else {
-                // Merge data from multiple series
-                Object.assign(portalData, singleSeriesData);
-              }
-              
-              loadingAttempts.push({ approach: `Single series ID: ${seriesId}`, success: true, data: singleSeriesData });
-            } catch (singleError) {
-              console.log(`❌ Attempt 3.${seriesId} failed:`, singleError.message);
-              loadingAttempts.push({ approach: `Single series ID: ${seriesId}`, success: false, error: singleError.message });
-            }
-          }
-        }
-      }
-
-      setDebugInfo(prev => ({ ...prev, loadingAttempts }));
-
-      if (!portalData) {
-        throw new Error('Failed to load portal data with any approach. Check the console for detailed attempts.');
-      }
-
-      const allQuotes: QuoteRequest[] = [];
-      const allRawTasks: any[] = [];
-
-      // Process the portal data
-      if (portalData && typeof portalData === 'object') {
-        Object.entries(portalData).forEach(([seriesId, componentData]: [string, any]) => {
-          console.log(`📊 Processing series ${seriesId}:`, componentData);
-          
-          if (componentData && componentData.type === 'list' && componentData.listResult) {
-            console.log(`📝 Found ${componentData.listResult.length} tasks in series ${seriesId}`);
-            
-            // Store raw tasks for debugging
-            allRawTasks.push(...componentData.listResult);
-            
-            // Auto-detect field mappings if we have tasks
-            if (componentData.listResult.length > 0) {
-              const fieldMappings = DataMappingService.autoDetectFieldMappings(componentData.listResult);
-              setDebugInfo(prev => ({ ...prev, fieldMappings, sampleTask: componentData.listResult[0] }));
-            }
-            
-            // Convert HiSAFE tasks to quotes
-            const quotesFromSeries = componentData.listResult.map((task: any, index: number) => {
-              try {
-                const mappedQuote = DataMappingService.mapTaskToQuote(task);
-                console.log(`✅ Successfully mapped task ${task.task_id}:`, {
-                  id: mappedQuote.id,
-                  clientName: mappedQuote.clientName,
-                  status: mappedQuote.status
-                });
-                return mappedQuote;
-              } catch (mappingError) {
-                console.error(`❌ Failed to map task ${task.task_id}:`, mappingError);
-                console.log('🔍 Raw task data:', task);
-                DataMappingService.debugTaskStructure(task);
-                
-                // Create a fallback quote so we don't lose data
-                return {
-                  id: task.task_id?.toString() || `fallback-${index}`,
-                  clientName: `Task ${task.task_id} (Mapping Error)`,
-                  clientEmail: 'unknown@example.com',
-                  clientPhone: '',
-                  projectType: 'Unknown',
-                  projectDescription: 'Failed to map task data - check console for details',
-                  budget: '',
-                  timeline: '',
-                  location: '',
-                  status: 'pending' as QuoteStatus,
-                  submittedAt: new Date().toISOString(),
-                  updatedAt: new Date().toISOString(),
-                  notes: `Original task ID: ${task.task_id}`,
-                  comments: []
-                };
-              }
-            });
-            
-            allQuotes.push(...quotesFromSeries);
-            console.log(`✅ Added ${quotesFromSeries.length} quotes from series ${seriesId}`);
-          } else if (componentData && componentData.type) {
-            console.log(`ℹ️ Series ${seriesId} has component type '${componentData.type}' but no listResult`);
-          }
-        });
-      }
-
+      
+      console.log('🔄 Starting to load quotes from HiSAFE...');
+      
+      // Get all quotes with complete data
+      const allQuotes = await quotesService.getAllQuotes();
+      
+      // Auto-detect field mappings for debug info
+      const allRawTasks: any[] = []; // This would be populated by the raw task data
+      const fieldMappings = DataMappingService.autoDetectFieldMappings(allRawTasks);
+      
       setQuotes(allQuotes);
       setRawTasksData(allRawTasks);
+      setDebugInfo({
+        loadingAttempts: [{ success: true, quotesFound: allQuotes.length }],
+        fieldMappings,
+        sampleTask: allRawTasks[0] || null
+      });
       
       toast({
         title: "Data Loaded Successfully",
         description: `Loaded ${allQuotes.length} quotes from HiSAFE`,
       });
 
-      console.log(`🎉 Successfully loaded ${allQuotes.length} quotes from ${allRawTasks.length} raw tasks`);
+      console.log(`🎉 Successfully loaded ${allQuotes.length} quotes`);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load quotes';
@@ -214,27 +84,10 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
 
   const handleStatusChange = async (id: string, status: QuoteStatus) => {
     try {
-      const taskId = parseInt(id);
-      if (isNaN(taskId)) {
-        throw new Error('Invalid task ID');
-      }
+      console.log(`🔄 Updating task ${id} status to ${status}`);
 
-      console.log(`🔄 Updating task ${taskId} status to ${status}`);
-
-      // Find the current quote to get existing data
-      const currentQuote = quotes.find(q => q.id === id);
-      if (!currentQuote) {
-        throw new Error('Quote not found');
-      }
-
-      // Create updated quote with new status
-      const updatedQuote = { ...currentQuote, status };
-
-      // Convert to HiSAFE task fields
-      const taskFields = DataMappingService.mapQuoteToTaskFields(updatedQuote);
-
-      // Update in HiSAFE
-      await hisafeApi.updateTask(taskId, taskFields);
+      // Update the quote status using the service
+      const updatedQuote = await quotesService.updateQuoteStatus(id, status);
 
       // Update local state
       setQuotes(prev => prev.map(quote => 
@@ -261,10 +114,55 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
   };
 
   const handleAddComment = async (id: string) => {
-    toast({
-      title: "Comments",
-      description: "Comment functionality coming soon!",
-    });
+    const quote = quotes.find(q => q.id === id);
+    if (!quote) {
+      toast({
+        title: "Error",
+        description: "Quote not found",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setSelectedQuoteForComment(quote);
+    setCommentDialogOpen(true);
+  };
+  
+  const handleSubmitComment = async (quoteId: string, commentText: string, author: string) => {
+    try {
+      console.log(`💬 Adding comment to quote ${quoteId}...`);
+      
+      // Add comment using the service
+      const updatedQuote = await quotesService.addComment(quoteId, commentText, author);
+      
+      // Update local state
+      setQuotes(prev => prev.map(quote => 
+        quote.id === quoteId 
+          ? updatedQuote
+          : quote
+      ));
+      
+      // Update the selected quote for the dialog
+      if (selectedQuoteForComment && selectedQuoteForComment.id === quoteId) {
+        setSelectedQuoteForComment(updatedQuote);
+      }
+      
+      toast({
+        title: "Comment Added",
+        description: "Your comment has been saved successfully",
+      });
+      
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
+      console.error('💥 Error adding comment:', err);
+      
+      toast({
+        title: "Comment Failed",
+        description: errorMessage,
+        variant: "destructive"
+      });
+      throw err; // Re-throw so dialog can handle it
+    }
   };
 
   const getFilteredQuotes = (status?: QuoteStatus) => {
@@ -286,8 +184,13 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
       approved: quotes.filter(q => q.status === 'approved').length
     };
   };
+  
+  const getTotalValue = () => {
+    return quotes.reduce((sum, quote) => sum + (quote.estimatedCost || 0), 0);
+  };
 
   const counts = getStatusCounts();
+  const totalValue = getTotalValue();
 
   // Loading state
   if (loading) {
@@ -296,7 +199,7 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
         <Card className="p-8 text-center shadow-card bg-gradient-card">
           <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <h2 className="text-xl font-semibold mb-2">Loading Quotes</h2>
-          <p className="text-muted-foreground">Connecting to HiSAFE and discovering available data sources...</p>
+          <p className="text-muted-foreground">Connecting to HiSAFE and getting complete task data...</p>
         </Card>
       </div>
     );
@@ -311,57 +214,17 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
           <h2 className="text-xl font-semibold mb-2">Connection Error</h2>
           <p className="text-muted-foreground mb-4">{error}</p>
           
-          {debugInfo && (
-            <div className="text-left text-sm mb-4 p-4 bg-muted rounded-lg max-h-64 overflow-y-auto">
-              <h3 className="font-semibold mb-2">🔍 Debug Information:</h3>
-              {debugInfo.metadata && (
-                <div className="mb-2">
-                  <strong>Portal components:</strong> {debugInfo.metadata.dashboardComponents?.length || 0}
-                </div>
-              )}
-              {debugInfo.loadingAttempts && debugInfo.loadingAttempts.length > 0 && (
-                <div>
-                  <strong>Loading attempts:</strong>
-                  <ul className="ml-4 mt-1">
-                    {debugInfo.loadingAttempts.map((attempt: any, index: number) => (
-                      <li key={index} className={attempt.success ? 'text-green-600' : 'text-red-600'}>
-                        {attempt.approach}: {attempt.success ? 'Success' : `Failed - ${attempt.error}`}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {debugInfo.sampleTask && (
-                <div className="mt-2">
-                  <strong>Sample task fields:</strong>
-                  <div className="text-xs mt-1 font-mono">
-                    {Object.keys(debugInfo.sampleTask.fields || {}).join(', ')}
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-          
-          <div className="space-y-2">
-            <Button onClick={loadQuotesFromHiSAFE} className="bg-primary hover:bg-primary-hover w-full">
+          <div className="flex gap-2 justify-center">
+            <Button onClick={loadQuotesFromHiSAFE} variant="default">
               <RefreshCw className="w-4 h-4 mr-2" />
-              Retry Connection
+              Retry
             </Button>
             <Button 
-              variant="outline" 
-              onClick={() => {
-                console.log('=== CONFIGURATION DEBUG ===');
-                console.log('Base URL:', import.meta.env.VITE_HISAFE_BASE_URL);
-                console.log('Client ID:', import.meta.env.VITE_HISAFE_CLIENT_ID ? 'Set' : 'Not set');
-                console.log('Portal Slug:', import.meta.env.VITE_HISAFE_PORTAL_SLUG);
-                console.log('Debug Info:', debugInfo);
-                console.log('Raw Tasks:', rawTasksData);
-                console.log('============================');
-                setShowDebugPanel(true);
-              }}
-              className="w-full"
+              onClick={() => setShowDebugPanel(true)} 
+              variant="outline"
             >
-              Show Debug Panel
+              <Bug className="w-4 h-4 mr-2" />
+              Debug
             </Button>
           </div>
         </Card>
@@ -372,11 +235,11 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container mx-auto px-4 py-6">
+      <div className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-40">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-3xl font-bold text-primary">
+              <h1 className="text-2xl font-bold text-foreground">
                 {viewMode === 'contractor' ? 'Construction Dashboard' : 'My Quote Requests'}
               </h1>
               {error && (
@@ -417,9 +280,9 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
             <CardContent className="space-y-4">
               <div>
                 <h4 className="font-semibold">Data Summary:</h4>
-                <p>Raw tasks loaded: {rawTasksData.length}</p>
                 <p>Successfully mapped quotes: {quotes.length}</p>
-                <p>Mapping success rate: {rawTasksData.length > 0 ? Math.round((quotes.length / rawTasksData.length) * 100) : 0}%</p>
+                <p>Quotes with cost data: {quotes.filter(q => q.estimatedCost).length}</p>
+                <p>Total value: ${totalValue.toLocaleString()}</p>
               </div>
               
               {debugInfo.fieldMappings && (
@@ -431,15 +294,6 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
                 </div>
               )}
               
-              {debugInfo.sampleTask && (
-                <div>
-                  <h4 className="font-semibold">Sample Task Structure:</h4>
-                  <pre className="text-xs bg-gray-100 p-2 rounded overflow-x-auto">
-                    {JSON.stringify(debugInfo.sampleTask, null, 2).substring(0, 500)}...
-                  </pre>
-                </div>
-              )}
-              
               <Button 
                 variant="outline" 
                 size="sm"
@@ -448,6 +302,7 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
                   console.log('Raw Tasks:', rawTasksData);
                   console.log('Mapped Quotes:', quotes);
                   console.log('Debug Info:', debugInfo);
+                  quotesService.debugRawData(); // Run additional debug
                   console.log('======================');
                 }}
               >
@@ -466,64 +321,51 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{counts.all}</div>
-              {rawTasksData.length !== counts.all && (
-                <p className="text-xs text-muted-foreground">
-                  ({rawTasksData.length} raw tasks loaded)
-                </p>
-              )}
             </CardContent>
           </Card>
           
           <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Pending</CardTitle>
-              <Clock className="h-4 w-4 text-status-pending" />
+              <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-status-pending">{counts.pending}</div>
+              <div className="text-2xl font-bold">{counts.pending}</div>
             </CardContent>
           </Card>
           
           <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Processing</CardTitle>
-              <Users className="h-4 w-4 text-status-processing" />
+              <CardTitle className="text-sm font-medium">Completed</CardTitle>
+              <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-status-processing">{counts.processing}</div>
+              <div className="text-2xl font-bold">{counts.approved}</div>
             </CardContent>
           </Card>
-
+          
           <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Approved</CardTitle>
-              <CheckCircle className="h-4 w-4 text-status-approved" />
+              <CardTitle className="text-sm font-medium">Total Value</CardTitle>
+              <DollarSign className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold text-status-approved">{counts.approved}</div>
+              <div className="text-2xl font-bold">${totalValue.toLocaleString()}</div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Tabs for filtering quotes */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="all">
-              All <Badge variant="secondary" className="ml-2">{counts.all}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="pending">
-              Pending <Badge variant="secondary" className="ml-2">{counts.pending}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="processing">
-              Processing <Badge variant="secondary" className="ml-2">{counts.processing}</Badge>
-            </TabsTrigger>
-            <TabsTrigger value="approved">
-              Approved <Badge variant="secondary" className="ml-2">{counts.approved}</Badge>
-            </TabsTrigger>
+        {/* Quotes Grid */}
+        <Tabs defaultValue="all" className="space-y-6">
+          <TabsList className="bg-muted/50 backdrop-blur-sm">
+            <TabsTrigger value="all">All ({counts.all})</TabsTrigger>
+            <TabsTrigger value="pending">Pending ({counts.pending})</TabsTrigger>
+            <TabsTrigger value="processing">In Progress ({counts.processing})</TabsTrigger>
+            <TabsTrigger value="approved">Completed ({counts.approved})</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="all" className="mt-6">
-            <div className="grid gap-6">
+          <TabsContent value="all" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {getFilteredQuotes().map((quote) => (
                 <QuoteCard
                   key={quote.id}
@@ -533,24 +375,11 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
                   onAddComment={handleAddComment}
                 />
               ))}
-              {getFilteredQuotes().length === 0 && (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground mb-4">No quotes found.</p>
-                  <Button 
-                    onClick={loadQuotesFromHiSAFE} 
-                    className="mt-4"
-                    variant="outline"
-                  >
-                    <RefreshCw className="w-4 h-4 mr-2" />
-                    Reload Data
-                  </Button>
-                </Card>
-              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="pending" className="mt-6">
-            <div className="grid gap-6">
+          <TabsContent value="pending" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {getFilteredQuotes('pending').map((quote) => (
                 <QuoteCard
                   key={quote.id}
@@ -560,16 +389,11 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
                   onAddComment={handleAddComment}
                 />
               ))}
-              {getFilteredQuotes('pending').length === 0 && (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No pending quotes.</p>
-                </Card>
-              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="processing" className="mt-6">
-            <div className="grid gap-6">
+          <TabsContent value="processing" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {getFilteredQuotes('processing').map((quote) => (
                 <QuoteCard
                   key={quote.id}
@@ -579,16 +403,11 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
                   onAddComment={handleAddComment}
                 />
               ))}
-              {getFilteredQuotes('processing').length === 0 && (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No processing quotes.</p>
-                </Card>
-              )}
             </div>
           </TabsContent>
 
-          <TabsContent value="approved" className="mt-6">
-            <div className="grid gap-6">
+          <TabsContent value="approved" className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {getFilteredQuotes('approved').map((quote) => (
                 <QuoteCard
                   key={quote.id}
@@ -598,15 +417,37 @@ export default function Dashboard({ viewMode = 'client' }: DashboardProps) {
                   onAddComment={handleAddComment}
                 />
               ))}
-              {getFilteredQuotes('approved').length === 0 && (
-                <Card className="p-8 text-center">
-                  <p className="text-muted-foreground">No approved quotes.</p>
-                </Card>
-              )}
             </div>
           </TabsContent>
         </Tabs>
+
+        {/* Empty State */}
+        {quotes.length === 0 && !loading && (
+          <Card className="p-8 text-center">
+            <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
+            <h3 className="text-lg font-semibold mb-2">No Quotes Found</h3>
+            <p className="text-muted-foreground mb-4">
+              No quote requests found in your HiSAFE system.
+            </p>
+            <Button onClick={loadQuotesFromHiSAFE}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Refresh Data
+            </Button>
+          </Card>
+        )}
       </div>
+      
+      {/* Comment Dialog */}
+      {selectedQuoteForComment && (
+        <CommentDialog
+          open={commentDialogOpen}
+          onOpenChange={setCommentDialogOpen}
+          quote={selectedQuoteForComment}
+          onAddComment={handleSubmitComment}
+        />
+      )}
     </div>
   );
 }
+
+export default Dashboard;
