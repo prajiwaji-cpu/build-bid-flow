@@ -316,4 +316,64 @@ export class QuotesService {
   }
   
   // Test HiSAFE connection
-  async test
+  async testConnection(): Promise<boolean> {
+    try {
+      await hisafeApi.initAuth();
+      const metadata = await hisafeApi.getPortalMetadata();
+      console.log('HiSAFE connection test successful:', metadata);
+      return true;
+    } catch (error) {
+      console.error('HiSAFE connection test failed:', error);
+      return false;
+    }
+  }
+  
+  // Get available form IDs and metadata
+  async getAvailableForms(): Promise<any[]> {
+    try {
+      const metadata = await hisafeApi.getPortalMetadata();
+      return metadata.forms || [];
+    } catch (error) {
+      console.error('Failed to get available forms:', error);
+      return [];
+    }
+  }
+  
+  // Debug method to inspect raw HiSAFE data
+  async debugRawData(): Promise<void> {
+    try {
+      console.group('HiSAFE Raw Data Debug');
+      
+      const portalData = await hisafeApi.loadPortalData();
+      console.log('Portal Data:', portalData);
+      
+      const basicTasks = await hisafeApi.getAllTasks();
+      console.log(`Found ${basicTasks.length} basic tasks`);
+      
+      if (basicTasks.length > 0) {
+        console.group('First Task Structure:');
+        DataMappingService.debugTaskStructure(basicTasks[0]);
+        console.groupEnd();
+        
+        // Try to get complete data for the first task
+        try {
+          console.group('First Task Complete Data:');
+          const completeTask = await hisafeApi.getTask(basicTasks[0].task_id);
+          console.log('Complete task data:', completeTask);
+          DataMappingService.debugTaskStructure(completeTask);
+          console.groupEnd();
+        } catch (error) {
+          console.error('Failed to get complete task data:', error);
+        }
+      }
+      
+      console.groupEnd();
+    } catch (error) {
+      console.error('Debug failed:', error);
+    }
+  }
+}
+
+// Create and export service instance
+export const quotesService = new QuotesService();
+export default quotesService;
