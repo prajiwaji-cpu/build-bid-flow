@@ -73,22 +73,29 @@ export class DataMappingService {
       return defaultValue;
     };
     
-    // Map status with fallback
-     let rawStatus = getFieldValue(FIELD_MAPPINGS.status);
-        console.log('DEBUG STATUS:', {
-        rawStatus,
-        type: typeof rawStatus,
-        taskStatus: task.status
-          });
-      if (!rawStatus && task.status) {
-      rawStatus = typeof task.status === 'string' ? task.status : task.status.name;
+        // FIXED STATUS MAPPING LOGIC
+    let rawStatus = getFieldValue(FIELD_MAPPINGS.status);
+    console.log('DEBUG STATUS - Step 1 - rawStatus from fields:', rawStatus);
+    
+    // If no status in fields, check task.status object
+    if (!rawStatus && task.status) {
+      if (typeof task.status === 'string') {
+        rawStatus = task.status;
+      } else if (task.status.name) {
+        rawStatus = task.status.name; // This is the key fix!
       }
-
-      if (!rawStatus) {
+    }
+    console.log('DEBUG STATUS - Step 2 - rawStatus after task.status check:', rawStatus);
+    
+    // Default fallback
+    if (!rawStatus) {
       rawStatus = 'Open';
-      }
-
-      const mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus] || 'pending';
+    }
+    console.log('DEBUG STATUS - Step 3 - final rawStatus:', rawStatus);
+    
+    // Map to your app's status
+    const mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus] || 'pending';
+    console.log('DEBUG STATUS - Step 4 - mappedStatus:', mappedStatus);
     
     // Get client name - try multiple possible field names
     const clientName = getFieldValue(FIELD_MAPPINGS.clientName) || `Customer ${task.task_id}`;
