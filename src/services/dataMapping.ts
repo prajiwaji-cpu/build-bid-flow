@@ -319,8 +319,11 @@ static mapTaskToQuote(task: HiSAFETask): QuoteRequest {
   
   return quote;
 }
-  // Helper methods
+ 
+    
+    // Replace all the helper functions section (around lines 320-450) with this clean version:
 
+// Helper function for safe string conversion
 private static safeString(value: any): string {
   if (value === null || value === undefined) return '';
   if (typeof value === 'number') return String(value);
@@ -345,99 +348,85 @@ private static safeString(value: any): string {
     return '';
   }
 }
-  private static getOwnerName(fields: any, task: HiSAFETask): string {
-    if (fields.owner && typeof fields.owner === 'object' && fields.owner.name) {
-      return fields.owner.name;
+
+private static getOwnerName(fields: any, task: HiSAFETask): string {
+  if (fields.owner && typeof fields.owner === 'object' && fields.owner.name) {
+    return fields.owner.name;
+  }
+  if (task.owner && typeof task.owner === 'object' && task.owner.name) {
+    return task.owner.name;
+  }
+  return '';
+}
+
+private static getAssigneeName(fields: any, task: HiSAFETask): string {
+  // Handle assignee array
+  if (fields.assignee && Array.isArray(fields.assignee) && fields.assignee.length > 0) {
+    return fields.assignee[0]?.name || '';
+  }
+  if (fields.assignee && typeof fields.assignee === 'object' && fields.assignee.name) {
+    return fields.assignee.name;
+  }
+  if (task.assignee && Array.isArray(task.assignee) && task.assignee.length > 0) {
+    return task.assignee[0]?.name || '';
+  }
+  if (task.assignee && typeof task.assignee === 'object' && task.assignee.name) {
+    return task.assignee.name;
+  }
+  return '';
+}
+
+// Enhanced date formatting
+private static formatDate(dateValue: any): string {
+  if (!dateValue) return new Date().toISOString();
+  
+  // Handle different date formats
+  if (typeof dateValue === 'string') {
+    // Handle ISO date strings
+    if (dateValue.includes('T') || dateValue.includes('Z')) {
+      return dateValue;
     }
-    if (task.owner && typeof task.owner === 'object' && task.owner.name) {
-      return task.owner.name;
+    // Handle simple date strings like "2025-10-02"
+    if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      return new Date(dateValue + 'T00:00:00Z').toISOString();
     }
-    return '';
+    // Try to parse other date formats
+    const parsed = new Date(dateValue);
+    return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
   }
   
-  private static getAssigneeName(fields: any, task: HiSAFETask): string {
-    // Handle assignee array
-    if (fields.assignee && Array.isArray(fields.assignee) && fields.assignee.length > 0) {
-      return fields.assignee[0]?.name || '';
-    }
-    if (fields.assignee && typeof fields.assignee === 'object' && fields.assignee.name) {
-      return fields.assignee.name;
-    }
-    if (task.assignee && Array.isArray(task.assignee) && task.assignee.length > 0) {
-      return task.assignee[0]?.name || '';
-    }
-    if (task.assignee && typeof task.assignee === 'object' && task.assignee.name) {
-      return task.assignee.name;
-    }
-    return '';
-  }
+  if (dateValue instanceof Date) return dateValue.toISOString();
   
-  // Enhanced date formatting
-  private static formatDate(dateValue: any): string {
-    if (!dateValue) return new Date().toISOString();
-    
-    // Handle different date formats
-    if (typeof dateValue === 'string') {
-      // Handle ISO date strings
-      if (dateValue.includes('T') || dateValue.includes('Z')) {
-        return dateValue;
-      }
-      // Handle simple date strings like "2025-10-02"
-      if (dateValue.match(/^\d{4}-\d{2}-\d{2}$/)) {
-        return new Date(dateValue + 'T00:00:00Z').toISOString();
-      }
-      // Try to parse other date formats
-      const parsed = new Date(dateValue);
-      return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
-    }
-    
-    if (dateValue instanceof Date) return dateValue.toISOString();
-    
-    try {
-      return new Date(dateValue).toISOString();
-    } catch {
-      return new Date().toISOString();
-    }
+  try {
+    return new Date(dateValue).toISOString();
+  } catch {
+    return new Date().toISOString();
   }
-  
-  // Enhanced numeric parsing with currency support
-  private static parseNumber(value: any): number | undefined {
-    if (value === null || value === undefined || value === '') return undefined;
-    if (typeof value === 'number') return value;
-    if (typeof value === 'string') {
-      // Remove currency symbols, commas, and spaces
-      const cleaned = value.replace(/[\$,\s]/g, '');
-      const parsed = parseFloat(cleaned);
-      return isNaN(parsed) ? undefined : parsed;
-    }
-    
-    const parsed = Number(value);
+}
+
+// Enhanced numeric parsing with currency support
+private static parseNumber(value: any): number | undefined {
+  if (value === null || value === undefined || value === '') return undefined;
+  if (typeof value === 'number') return value;
+  if (typeof value === 'string') {
+    // Remove currency symbols, commas, and spaces
+    const cleaned = value.replace(/[\$,\s]/g, '');
+    const parsed = parseFloat(cleaned);
     return isNaN(parsed) ? undefined : parsed;
   }
   
-  // Fix for the cleanString function in src/services/dataMapping.ts
-// Replace the existing cleanString function with this enhanced version:
+  const parsed = Number(value);
+  return isNaN(parsed) ? undefined : parsed;
+}
 
 // Enhanced string cleaning with better type handling
 private static cleanString(value: any): string {
   const str = this.safeString(value);
   return str.trim();
 }
-  
-  // Handle arrays
-  if (Array.isArray(value)) {
-    return value.join(', ');
-  }
-  
-  // Handle strings (the normal case)
-  try {
-    return String(value).trim();
-  } catch {
-    return '';
-  }
-}
-//parsecomments function
- private static parseComments(fields: Record<string, any>, task: HiSAFETask): Comment[] {
+
+// Enhanced comment parsing
+private static parseComments(fields: Record<string, any>, task: HiSAFETask): Comment[] {
   const comments: Comment[] = [];
   
   // Try to extract comments from various fields
@@ -462,9 +451,8 @@ private static cleanString(value: any): string {
     }
   });
   
-    
-    return comments;
-  }
+  return comments;
+}
   
   // All the existing helper methods remain the same...
   static debugTaskStructure(task: HiSAFETask): void {
