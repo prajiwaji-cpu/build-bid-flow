@@ -258,42 +258,48 @@ export class DataMappingService {
       return notesParts.join('\n\n');
     };
     
-    // ENHANCED: Build the quote object with all new fields
-    const quote: QuoteRequest = {
-      id: task.task_id.toString(),
-      clientName: this.cleanString(getCustomerName()),
-      clientEmail: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientEmail) || 'unknown@example.com'),
-      clientPhone: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientPhone)),
-      projectType: this.cleanString(getFieldValue(FIELD_MAPPINGS.projectType) || 'Manufacturing Quote'),
-      projectDescription: this.cleanString(buildProjectDescription()),
-      budget: this.cleanString(getFieldValue(['Budget', 'budget', 'estimated_budget'])),
-      timeline: this.cleanString(
-        getFieldValue(FIELD_MAPPINGS.estimatedNeedByDate) || 
-        this.formatDate(fields.due_date) ||
-        this.formatDate(task.due_date)
-      ),
-      location: this.cleanString(getFieldValue(FIELD_MAPPINGS.location)),
-      status: mappedStatus,
-      submittedAt: this.formatDate(
-        getFieldValue(FIELD_MAPPINGS.createdDate) || 
-        task.created_date || 
-        new Date().toISOString()
-      ),
-      updatedAt: this.formatDate(
-        getFieldValue(FIELD_MAPPINGS.updatedDate) || 
-        task.updated_date || 
-        task.created_date || 
-        new Date().toISOString()
-      )
-    
-     // NEW FIELDS - Extract from HiSAFE data
-itemPartName: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartName)),
-itemPartSize: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartSize)),
-estimatedJobHours: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedHours)),
-quoteExpirationDate: getFieldValue(FIELD_MAPPINGS.quoteExpirationDate) ? 
-  this.formatDate(getFieldValue(FIELD_MAPPINGS.quoteExpirationDate)) : undefined,
-quoteTotal: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost)) // Use Quote_Total as primary source
-    };
+    // Fix for the quote object in src/services/dataMapping.ts
+// Replace the entire quote object definition (around line 250-295) with this:
+
+// ENHANCED: Build the quote object with all new fields
+const quote: QuoteRequest = {
+  id: task.task_id.toString(),
+  clientName: this.cleanString(getCustomerName()),
+  clientEmail: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientEmail) || 'unknown@example.com'),
+  clientPhone: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientPhone)),
+  projectType: this.cleanString(getFieldValue(FIELD_MAPPINGS.projectType) || 'Manufacturing Quote'),
+  projectDescription: this.cleanString(buildProjectDescription()),
+  budget: this.cleanString(getFieldValue(['Budget', 'budget', 'estimated_budget'])),
+  timeline: this.cleanString(
+    getFieldValue(FIELD_MAPPINGS.estimatedNeedByDate) || 
+    this.formatDate(fields.due_date) ||
+    this.formatDate(task.due_date)
+  ),
+  location: this.cleanString(getFieldValue(FIELD_MAPPINGS.location)),
+  status: mappedStatus,
+  submittedAt: this.formatDate(
+    getFieldValue(FIELD_MAPPINGS.createdDate) || 
+    task.created_date || 
+    new Date().toISOString()
+  ),
+  updatedAt: this.formatDate(
+    getFieldValue(FIELD_MAPPINGS.updatedDate) || 
+    task.updated_date || 
+    task.created_date || 
+    new Date().toISOString()
+  ),
+  estimatedCost: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost)),
+  notes: this.cleanString(buildNotes()),
+  comments: this.parseComments(fields, task),
+  
+  // NEW FIELDS - Extract from HiSAFE data
+  itemPartName: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartName)),
+  itemPartSize: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartSize)),
+  estimatedJobHours: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedHours)),
+  quoteExpirationDate: getFieldValue(FIELD_MAPPINGS.quoteExpirationDate) ? 
+    this.formatDate(getFieldValue(FIELD_MAPPINGS.quoteExpirationDate)) : undefined,
+  quoteTotal: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost))
+};
     // Enhanced debug log
     console.log('✅ Enhanced mapping complete:', {
       id: quote.id,
