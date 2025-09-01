@@ -190,56 +190,72 @@ class QuotesService {
   }
   
   // Update quote status
-  async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequest> {
+// Replace the updateQuoteStatus method in src/services/quotesService.ts with this fixed version:
+
+async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequest> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🔄 Updating quote ${quoteId} status to ${status}`);
+    
+    // Get current quote
+    const currentQuote = await this.getQuote(quoteId);
+    if (!currentQuote) {
+      throw new Error('Quote not found');
+    }
+    
+    // Update status locally first
+    const updatedQuote = { 
+      ...currentQuote, 
+      status, 
+      updatedAt: new Date().toISOString() 
+    };
+    
+    // Try to update in HiSAFE with the correct format
     try {
-      const taskId = parseInt(quoteId);
-      if (isNaN(taskId)) {
-        throw new Error('Invalid quote ID');
-      }
-      
-      console.log(`🔄 Updating quote ${quoteId} status to ${status}`);
-      
-      // Get current quote
-      const currentQuote = await this.getQuote(quoteId);
-      if (!currentQuote) {
-        throw new Error('Quote not found');
-      }
-      
-      // Update status locally first
-      const updatedQuote = { 
-        ...currentQuote, 
-        status, 
-        updatedAt: new Date().toISOString() 
+      const statusMappings = {
+        'pending': 'Awaiting Approval',
+        'processing': 'Work in Progress', 
+        'approved': 'Quote Complete',
+        'denied': 'Quote Denied'
       };
       
-      // Try to update in HiSAFE
+      const hisafeStatus = statusMappings[status];
+      if (hisafeStatus) {
+        // FIX: Send status as a simple string field, not an object
+        await hisafeApi.updateTask(taskId, {
+          status: hisafeStatus  // Send as direct field value
+        });
+        console.log(`✅ Updated task ${taskId} status to ${hisafeStatus} in HiSAFE`);
+      }
+    } catch (updateError) {
+      console.warn(`⚠️ Failed to update HiSAFE status for task ${taskId}:`, updateError);
+      console.warn('Response details:', updateError);
+      
+      // Try alternative format - send status with name property
       try {
-        const statusMappings = {
-          'pending': 'Awaiting Approval',
-          'processing': 'Work in Progress', 
-          'approved': 'Quote Complete',
-          'denied': 'Quote Denied'
-        };
-        
+        console.log('🔄 Trying alternative status format...');
         const hisafeStatus = statusMappings[status];
-        if (hisafeStatus) {
-          await hisafeApi.updateTask(taskId, { 
-            status: { name: hisafeStatus } // Send as object to match expected format
-          });
-          console.log(`✅ Updated task ${taskId} status to ${hisafeStatus} in HiSAFE`);
-        }
-      } catch (updateError) {
-        console.warn(`⚠️ Failed to update HiSAFE status for task ${taskId}:`, updateError.message);
+        await hisafeApi.updateTask(taskId, {
+          status: { name: hisafeStatus }
+        });
+        console.log(`✅ Updated task ${taskId} status with alternative format`);
+      } catch (alternativeError) {
+        console.error('❌ Both status update methods failed:', alternativeError);
         // Continue with local update even if remote update fails
       }
-      
-      return updatedQuote;
-      
-    } catch (error) {
-      console.error(`Failed to update quote status ${quoteId}:`, error);
-      throw error;
     }
+    
+    return updatedQuote;
+    
+  } catch (error) {
+    console.error(`Failed to update quote status ${quoteId}:`, error);
+    throw error;
   }
+}
   // Add this new method to src/services/quotesService.ts to handle comment appending
 
 async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
