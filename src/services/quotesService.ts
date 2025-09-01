@@ -240,7 +240,109 @@ class QuotesService {
       throw error;
     }
   }
-  
+  // Add this new method to src/services/quotesService.ts to handle comment appending
+
+async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`💬 Adding comment to quote ${quoteId}...`);
+    
+    // Get current quote to read existing comments
+    const currentQuote = await this.getQuote(quoteId);
+    if (!currentQuote) {
+      throw new Error('Quote not found');
+    }
+
+    // Get the current task to read the existing Comments field
+    const currentTask = await hisafeApi.getTask(taskId);
+    const existingComments = this.safeString(currentTask.fields?.Comments || '');
+    
+    // Format new comment with timestamp and author
+    const timestamp = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const newCommentEntry = `[${timestamp}] ${author}: ${commentText}`;
+    
+    // Append to existing comments (don't replace)
+    const updatedCommentsText = existingComments 
+      ? `${existingComments}\n\n${newCommentEntry}`
+      : newCommentEntry;
+    
+    console.log(`📝 Appending comment to existing text:`, {
+      existingLength: existingComments.length,
+      newEntry: newCommentEntry,
+      totalLength: updatedCommentsText.length
+    });
+    
+    // Update the Comments field in HiSAFE using the proper API structure
+    try {
+      await hisafeApi.updateTask(taskId, {
+        Comments: updatedCommentsText  // Direct field update
+      });
+      console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
+    } catch (updateError) {
+      console.error(`⚠️ Failed to update Comments field in HiSAFE:`, updateError);
+      throw new Error(`Failed to save comment to HiSAFE: ${updateError.message}`);
+    }
+    
+    // Update local quote object with new comment
+    const newComment: Comment = {
+      id: Math.random().toString(36),
+      author: author,
+      authorType: 'contractor',
+      message: commentText,
+      timestamp: new Date().toISOString()
+    };
+    
+    const updatedQuote: QuoteRequest = {
+      ...currentQuote,
+      comments: [...currentQuote.comments, newComment],
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log(`✅ Comment added successfully to quote ${quoteId}`);
+    return updatedQuote;
+    
+  } catch (error) {
+    console.error(`Failed to add comment to quote ${quoteId}:`, error);
+    throw error;
+  }
+}
+
+// Helper method to safely convert values to strings (add this to quotesService.ts)
+private safeString(value: any): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    if (value.text) return String(value.text);
+    if (value.name) return String(value.name);
+    if (value.value) return String(value.value);
+    try {
+      const stringified = JSON.stringify(value);
+      return stringified === '{}' ? '' : stringified;
+    } catch {
+      return '';
+    }
+  }
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+  try {
+    return String(value);
+  } catch {
+    return '';
+  }
+}
   // Get quotes by status
   async getQuotesByStatus(status: QuoteStatus): Promise<QuoteRequest[]> {
     const allQuotes = await this.getAllQuotes();
