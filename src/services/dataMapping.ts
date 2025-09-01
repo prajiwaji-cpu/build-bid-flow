@@ -389,12 +389,48 @@ const quote: QuoteRequest = {
     return isNaN(parsed) ? undefined : parsed;
   }
   
-  // Clean string values
-  private static cleanString(value: any): string {
-    if (value === null || value === undefined) return '';
-    return String(value).trim();
+  // Fix for the cleanString function in src/services/dataMapping.ts
+// Replace the existing cleanString function with this enhanced version:
+
+// Enhanced string cleaning with better type handling
+private static cleanString(value: any): string {
+  // Handle null/undefined
+  if (value === null || value === undefined) return '';
+  
+  // Handle numbers - convert to string
+  if (typeof value === 'number') return String(value);
+  
+  // Handle booleans - convert to string
+  if (typeof value === 'boolean') return String(value);
+  
+  // Handle objects - check if it has a meaningful property
+  if (typeof value === 'object') {
+    // Handle common object structures from HiSAFE
+    if (value.name) return String(value.name).trim();
+    if (value.text) return String(value.text).trim();
+    if (value.value) return String(value.value).trim();
+    
+    // For other objects, try to stringify
+    try {
+      const stringified = JSON.stringify(value);
+      return stringified === '{}' ? '' : stringified;
+    } catch {
+      return '';
+    }
   }
   
+  // Handle arrays
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+  
+  // Handle strings (the normal case)
+  try {
+    return String(value).trim();
+  } catch {
+    return '';
+  }
+}
   // Enhanced comment parsing
   private static parseComments(fields: Record<string, any>, task: HiSAFETask): Comment[] {
     const comments: Comment[] = [];
