@@ -290,7 +290,7 @@ export class DataMappingService {
       itemPartName: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartName)),
       itemPartSize: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartSize)),
       estimatedJobHours: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedHours)),
-      quoteExpirationDate: getFieldValue(FIELD_MAPPINGS.quoteExpirationDate) ? 
+      quoteExpirationDate: getFieldValue(FIELD_MAPPINGS.quoteExpirationDate),
       this.formatDate(getFieldValue(FIELD_MAPPINGS.quoteExpirationDate)) : undefined,
       quoteTotal: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost)) // Use Quote_Total as primary source
     };
