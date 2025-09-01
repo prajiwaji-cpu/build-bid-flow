@@ -191,15 +191,33 @@ export class DataMappingService {
     };
     
     // ENHANCED: Build comprehensive project description
-    const buildProjectDescription = () => {
-      const itemName = getFieldValue(FIELD_MAPPINGS.itemPartName);
-      const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
-      const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
-      const briefDesc = getFieldValue(FIELD_MAPPINGS.projectDescription);
-      const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
-      
-      let description = '';
-      
+   const buildProjectDescription = () => {
+  const itemName = getFieldValue(FIELD_MAPPINGS.itemPartName);
+  const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
+  const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
+  const briefDesc = getFieldValue(FIELD_MAPPINGS.projectDescription);
+  const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
+  
+  let description = '';
+       // Primary: Use item name if available
+  if (itemName) {
+    description = this.safeString(itemName);
+    if (itemSize) description += ` (${this.safeString(itemSize)})`;
+    if (quantity) description += ` - ${this.safeString(quantity)}`;
+  } else if (briefDesc) {
+    description = this.safeString(briefDesc);
+  } else {
+    description = 'Project details not specified';
+  }
+  
+  // Add extended description if available and different
+  const extendedDescStr = this.safeString(extendedDesc);
+  if (extendedDescStr && extendedDescStr !== description && extendedDescStr.trim()) {
+    description += `\n\nAdditional Details: ${extendedDescStr}`;
+  }
+  
+  return description;
+};
       // Primary: Use item name if available
       if (itemName) {
         description = itemName;
@@ -220,30 +238,44 @@ export class DataMappingService {
     };
     
     // ENHANCED: Build comprehensive notes section
-    const buildNotes = () => {
-      const comments = getFieldValue(FIELD_MAPPINGS.comments);
-      const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
-      const estimatedHours = getFieldValue(FIELD_MAPPINGS.estimatedHours);
-      const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
-      const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
-      
-      const notesParts = [];
-      
-      if (comments && comments.trim()) {
-        notesParts.push(`Comments: ${comments}`);
-      }
-      
-      if (estimatedHours) {
-        notesParts.push(`Estimated Hours: ${estimatedHours}`);
-      }
-      
-      if (quantity) {
-        notesParts.push(`Quantity: ${quantity}`);
-      }
-      
-      if (itemSize) {
-        notesParts.push(`Size/Specification: ${itemSize}`);
-      }
+   const buildNotes = () => {
+  const comments = getFieldValue(FIELD_MAPPINGS.comments);
+  const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
+  const estimatedHours = getFieldValue(FIELD_MAPPINGS.estimatedHours);
+  const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
+  const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
+  
+  const notesParts = [];
+  
+  const commentsStr = this.safeString(comments);
+  if (commentsStr && commentsStr.trim()) {
+    notesParts.push(`Comments: ${commentsStr}`);
+  }
+  
+  if (estimatedHours) {
+    notesParts.push(`Estimated Hours: ${this.safeString(estimatedHours)}`);
+  }
+  
+  if (quantity) {
+    notesParts.push(`Quantity: ${this.safeString(quantity)}`);
+  }
+  
+  if (itemSize) {
+    notesParts.push(`Size/Specification: ${this.safeString(itemSize)}`);
+  }
+  
+  // Add system info
+  const ownerName = this.getOwnerName(fields, task);
+  const assigneeName = this.getAssigneeName(fields, task);
+  const systemInfo = [`Job ID: ${fields.job_id || task.task_id}`];
+  
+  if (ownerName) systemInfo.push(`Owner: ${ownerName}`);
+  if (assigneeName) systemInfo.push(`Assigned: ${assigneeName}`);
+  
+  notesParts.push(systemInfo.join(' | '));
+  
+  return notesParts.join('\n\n');
+};
       
       // Add system info
       const ownerName = this.getOwnerName(fields, task);
@@ -319,6 +351,31 @@ const quote: QuoteRequest = {
   }
   
   // Helper methods
+
+private static safeString(value: any): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    if (value.name) return String(value.name);
+    if (value.text) return String(value.text);
+    if (value.value) return String(value.value);
+    try {
+      const stringified = JSON.stringify(value);
+      return stringified === '{}' ? '' : stringified;
+    } catch {
+      return '';
+    }
+  }
+  if (Array.isArray(value)) {
+    return value.join(', ');
+  }
+  try {
+    return String(value);
+  } catch {
+    return '';
+  }
+}
   private static getOwnerName(fields: any, task: HiSAFETask): string {
     if (fields.owner && typeof fields.owner === 'object' && fields.owner.name) {
       return fields.owner.name;
@@ -394,30 +451,9 @@ const quote: QuoteRequest = {
 
 // Enhanced string cleaning with better type handling
 private static cleanString(value: any): string {
-  // Handle null/undefined
-  if (value === null || value === undefined) return '';
-  
-  // Handle numbers - convert to string
-  if (typeof value === 'number') return String(value);
-  
-  // Handle booleans - convert to string
-  if (typeof value === 'boolean') return String(value);
-  
-  // Handle objects - check if it has a meaningful property
-  if (typeof value === 'object') {
-    // Handle common object structures from HiSAFE
-    if (value.name) return String(value.name).trim();
-    if (value.text) return String(value.text).trim();
-    if (value.value) return String(value.value).trim();
-    
-    // For other objects, try to stringify
-    try {
-      const stringified = JSON.stringify(value);
-      return stringified === '{}' ? '' : stringified;
-    } catch {
-      return '';
-    }
-  }
+  const str = this.safeString(value);
+  return str.trim();
+}
   
   // Handle arrays
   if (Array.isArray(value)) {
@@ -431,30 +467,32 @@ private static cleanString(value: any): string {
     return '';
   }
 }
-  // Enhanced comment parsing
-  private static parseComments(fields: Record<string, any>, task: HiSAFETask): Comment[] {
-    const comments: Comment[] = [];
-    
-    // Try to extract comments from various fields
-    const commentSources = [
-      { source: fields.Comments?.text, label: 'Comments' },
-      { source: fields.extended_description?.text, label: 'Extended Description' },
-      { source: fields.comments, label: 'Comments' },
-      { source: fields.notes, label: 'Notes' },
-      { source: fields.remarks, label: 'Remarks' }
-    ];
-    
-    commentSources.forEach(({ source, label }, index) => {
-      if (source && typeof source === 'string' && source.trim()) {
-        comments.push({
-          id: `comment-${index}`,
-          author: 'System',
-          authorType: 'contractor',
-          message: `${label}: ${source.trim()}`,
-          timestamp: new Date().toISOString()
-        });
-      }
-    });
+//parsecomments function
+ private static parseComments(fields: Record<string, any>, task: HiSAFETask): Comment[] {
+  const comments: Comment[] = [];
+  
+  // Try to extract comments from various fields
+  const commentSources = [
+    { source: fields.Comments?.text, label: 'Comments' },
+    { source: fields.extended_description?.text, label: 'Extended Description' },
+    { source: fields.comments, label: 'Comments' },
+    { source: fields.notes, label: 'Notes' },
+    { source: fields.remarks, label: 'Remarks' }
+  ];
+  
+  commentSources.forEach(({ source, label }, index) => {
+    const sourceStr = this.safeString(source);
+    if (sourceStr && sourceStr.trim()) {
+      comments.push({
+        id: `comment-${index}`,
+        author: 'System',
+        authorType: 'contractor',
+        message: `${label}: ${sourceStr.trim()}`,
+        timestamp: new Date().toISOString()
+      });
+    }
+  });
+  
     
     return comments;
   }
