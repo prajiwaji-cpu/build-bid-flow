@@ -307,7 +307,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
               <Clock className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{counts.pending}</div>
+              <div className="text-2xl font-bold text-status-pending">{counts.pending}</div>
             </CardContent>
           </Card>
           
@@ -317,7 +317,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{counts.processing}</div>
+              <div className="text-2xl font-bold text-status-processing">{counts.processing}</div>
             </CardContent>
           </Card>
           
@@ -327,7 +327,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{counts.approved}</div>
+              <div className="text-2xl font-bold text-status-approved">{counts.approved}</div>
             </CardContent>
           </Card>
         </div>
