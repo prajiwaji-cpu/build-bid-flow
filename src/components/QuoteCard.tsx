@@ -164,15 +164,7 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
 
         {/* Contractor Actions - Processing state */}
         {viewMode === 'contractor' && onStatusChange && isProcessing && (
-          <div className="flex gap-2 pt-4 border-t">
-            <Button
-              size="sm"
-              className="bg-status-approved hover:bg-status-approved/90 text-white"
-              onClick={() => onStatusChange(quote.id, 'approved')}
-            >
-              Complete Quote
-            </Button>
-          </div>
+    
         )}
 
         {/* Comment Actions */}
