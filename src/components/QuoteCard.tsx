@@ -77,11 +77,10 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
       <CardHeader>
         <div className="flex justify-between items-start">
           <div className="flex-1">
-            <CardTitle className="text-lg font-semibold line-clamp-2 mb-2">
-              {quote.projectDescription.length > 80 
-                ? `${quote.projectDescription.substring(0, 80)}...` 
-                : quote.projectDescription}
-            </CardTitle>
+           <CardTitle className="text-lg font-semibold line-clamp-2 mb-2">
+            {quote.clientName}
+            {quote.itemPartName && ` - ${quote.itemPartName}`}
+          </CardTitle>
             <div className="flex flex-col gap-1 text-sm text-muted-foreground">
               <div className="flex items-center gap-2">
                 <Calendar className="w-4 h-4" />
