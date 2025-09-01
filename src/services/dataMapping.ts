@@ -285,7 +285,7 @@ export class DataMappingService {
         task.created_date || 
         new Date().toISOString()
       )
-    };
+    
      // NEW FIELDS - Extract from HiSAFE data
 itemPartName: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartName)),
 itemPartSize: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartSize)),
