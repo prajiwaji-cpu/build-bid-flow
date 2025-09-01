@@ -149,13 +149,7 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
         {/* Contractor Actions - Non-processing states */}
         {viewMode === 'contractor' && onStatusChange && !isProcessing && (
           <div className="flex gap-2 pt-4 border-t">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() => onStatusChange(quote.id, 'processing')}
-            >
-              Start Processing
-            </Button>
+          
             {quote.status === 'pending' && (
               <Button
                 size="sm"
