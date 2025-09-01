@@ -1,28 +1,95 @@
-// src/services/dataMapping.ts - Updated to work with your actual HiSAFE fields
+// src/services/dataMapping.ts - Fixed version with correct API response structure
 import { QuoteRequest, QuoteStatus, Comment } from '@/types/quote';
 import { HiSAFETask } from './hisafeApi';
 
-// Field mapping configuration - Updated based on your actual HiSAFE field structure
+// Expanded field mapping configuration with many more fields
 export const FIELD_MAPPINGS = {
-  // Core quote fields - Updated to match your actual data structure
-  clientName: ['Customer Name', 'customer_name', 'name', 'client_name', 'Name', 'Customer.Name'],
-  clientEmail: ['Customer Email', 'Email', 'customer_email', 'email', 'client_email', 'Customer.Email', 'Customer.E-mail Address'], 
-  clientPhone: ['Customer Phone', 'Phone', 'customer_phone', 'phone', 'Customer.Phone'],
-  projectType: ['Project Type', 'Task Form', 'task_form', 'project_type', 'type', 'form_name'],
-  projectDescription: ['brief_description', 'Item/Part Name', 'item_part_name', 'project_description', 'details', 'summary', 'description'],
-  estimatedNeedByDate: ['due_date', 'Estimated Need by Date', 'need_by_date', 'timeline', 'deadline'],
-  estimatedCost: ['Quote Total', 'Total Cost', 'Cost', 'Price', 'quote_total', 'total', 'cost', 'amount', 'price'],
-  jobId: ['job_id', 'Job ID', 'Job Number'],
+  // Client/Customer Information - Expanded with more possible field names
+  clientName: [
+    'Customer Name', 'customer_name', 'name', 'client_name', 'Name', 
+    'Customer.Name', 'Client Name', 'Contact Name', 'contact_name',
+    'Requestor', 'requestor', 'Customer', 'customer', 'Client', 'client',
+    'Company Name', 'company_name', 'Organization', 'organization'
+  ],
+  clientEmail: [
+    'Customer Email', 'Email', 'customer_email', 'email', 'client_email', 
+    'Customer.Email', 'Customer.E-mail Address', 'Contact Email', 'contact_email',
+    'E-mail', 'e_mail', 'Email Address', 'email_address'
+  ], 
+  clientPhone: [
+    'Customer Phone', 'Phone', 'customer_phone', 'phone', 'Customer.Phone',
+    'Contact Phone', 'contact_phone', 'Phone Number', 'phone_number',
+    'Mobile', 'mobile', 'Cell Phone', 'cell_phone', 'Telephone', 'telephone'
+  ],
   
-  // Comment/notes fields - for storing comments when they're added
-  comments: ['Comments', 'comments', 'Notes', 'notes', 'remarks', 'Internal Notes'],
+  // Project Information - Greatly expanded
+  projectType: [
+    'Project Type', 'Task Form', 'task_form', 'project_type', 'type', 'form_name',
+    'Service Type', 'service_type', 'Work Type', 'work_type', 'Category', 'category',
+    'Job Type', 'job_type', 'Request Type', 'request_type'
+  ],
+  projectDescription: [
+    'brief_description', 'Item/Part Name', 'item_part_name', 'project_description', 
+    'details', 'summary', 'description', 'Description', 'Project Description',
+    'Work Description', 'work_description', 'Scope', 'scope', 'Requirements', 'requirements',
+    'Details', 'Job Description', 'job_description', 'Task Description', 'task_description'
+  ],
+  
+  // Timeline and Dates
+  estimatedNeedByDate: [
+    'due_date', 'Estimated Need by Date', 'need_by_date', 'timeline', 'deadline',
+    'Due Date', 'Target Date', 'target_date', 'Completion Date', 'completion_date',
+    'Required By', 'required_by', 'Delivery Date', 'delivery_date'
+  ],
+  
+  // Financial Information - Expanded
+  estimatedCost: [
+    'Quote Total', 'Total Cost', 'Cost', 'Price', 'quote_total', 'total', 'cost', 'amount', 'price',
+    'Estimated Cost', 'estimated_cost', 'Budget', 'budget', 'Quote Amount', 'quote_amount',
+    'Total Price', 'total_price', 'Final Cost', 'final_cost', 'Contract Value', 'contract_value'
+  ],
+  
+  // Location Information - New
+  location: [
+    'Location', 'location', 'Address', 'address', 'Site', 'site', 'Job Site', 'job_site',
+    'Project Location', 'project_location', 'Work Location', 'work_location',
+    'Street Address', 'street_address', 'City', 'city', 'State', 'state'
+  ],
+  
+  // Contact Information - Additional fields
+  contactInfo: [
+    'Additional Contact', 'additional_contact', 'Secondary Contact', 'secondary_contact',
+    'Emergency Contact', 'emergency_contact', 'Alternate Phone', 'alternate_phone'
+  ],
+  
+  // Technical/Equipment Information - New
+  equipment: [
+    'Equipment', 'equipment', 'Model', 'model', 'Serial Number', 'serial_number',
+    'Part Number', 'part_number', 'Asset', 'asset', 'Unit', 'unit'
+  ],
+  
+  // Priority/Urgency - New
+  priority: [
+    'Priority', 'priority', 'Urgency', 'urgency', 'Importance', 'importance',
+    'Rush Job', 'rush_job', 'Emergency', 'emergency'
+  ],
+  
+  // Additional Business Information - New
+  department: [
+    'Department', 'department', 'Division', 'division', 'Business Unit', 'business_unit',
+    'Cost Center', 'cost_center', 'Account', 'account'
+  ],
+  
+  // Existing core fields
+  jobId: ['job_id', 'Job ID', 'Job Number', 'Work Order', 'work_order', 'Ticket Number', 'ticket_number'],
+  comments: ['Comments', 'comments', 'Notes', 'notes', 'remarks', 'Internal Notes', 'Special Instructions', 'special_instructions'],
   
   // System fields
   status: ['status'],
   assignee: ['assignee'],
   owner: ['owner'],
-  createdDate: ['post_date', 'created_date'],
-  updatedDate: ['updated_date', 'updated_at', 'date_updated', 'last_modified'],
+  createdDate: ['post_date', 'created_date', 'date_created', 'submitted_date'],
+  updatedDate: ['updated_date', 'updated_at', 'date_updated', 'last_modified', 'modified_date'],
 };
 
 // Status mapping between your app and HiSAFE - Updated based on your actual statuses
@@ -37,6 +104,11 @@ export const STATUS_MAPPINGS = {
     'Cancelled': 'denied' as QuoteStatus,
     'Completed': 'approved' as QuoteStatus,
     'Closed': 'approved' as QuoteStatus,
+    // Add any other status names you encounter
+    'Open': 'pending' as QuoteStatus,
+    'In Progress': 'processing' as QuoteStatus,
+    'New': 'pending' as QuoteStatus,
+    'Draft': 'pending' as QuoteStatus,
   },
   // Your app status -> HiSAFE status name
   toHiSAFE: {
@@ -49,7 +121,7 @@ export const STATUS_MAPPINGS = {
 
 export class DataMappingService {
   
-  // Convert HiSAFE task to QuoteRequest
+  // Convert HiSAFE task to QuoteRequest - Fixed to handle correct API structure
   static mapTaskToQuote(task: HiSAFETask): QuoteRequest {
     console.log('Mapping task:', task.task_id, 'with fields:', task.fields ? Object.keys(task.fields) : 'NO FIELDS');
     
@@ -76,33 +148,104 @@ export class DataMappingService {
       return defaultValue;
     };
     
-    // Map task status to app status
-    const rawStatus = task.status?.name || task.status || 'pending';
-    const mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus as keyof typeof STATUS_MAPPINGS.fromHiSAFE] || 'pending';
+    // FIXED: Handle status object correctly based on API response structure
+    let rawStatus = 'pending';
+    let mappedStatus: QuoteStatus = 'pending';
     
-    // Extract owner/assignee information for client data fallback
-    const ownerName = task.owner?.name || '';
-    const assigneeName = task.assignee?.[0]?.name || '';
+    // Check multiple possible locations for status
+    if (fields.status && typeof fields.status === 'object' && fields.status.name) {
+      // Status is an object with name property (as shown in your example)
+      rawStatus = fields.status.name;
+    } else if (fields.status && typeof fields.status === 'string') {
+      // Status is a direct string
+      rawStatus = fields.status;
+    } else if (task.status && typeof task.status === 'object' && task.status.name) {
+      // Status at task level as object
+      rawStatus = task.status.name;
+    } else if (task.status && typeof task.status === 'string') {
+      // Status at task level as string
+      rawStatus = task.status;
+    }
     
+    // Map to our app's status
+    mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus as keyof typeof STATUS_MAPPINGS.fromHiSAFE] || 'pending';
+    
+    // FIXED: Handle owner and assignee objects correctly
+    const getOwnerName = () => {
+      if (fields.owner && typeof fields.owner === 'object' && fields.owner.name) {
+        return fields.owner.name;
+      }
+      if (task.owner && typeof task.owner === 'object' && task.owner.name) {
+        return task.owner.name;
+      }
+      return '';
+    };
+    
+    const getAssigneeName = () => {
+      // Handle assignee array as shown in your API response
+      if (fields.assignee && Array.isArray(fields.assignee) && fields.assignee.length > 0) {
+        return fields.assignee[0]?.name || '';
+      }
+      if (fields.assignee && typeof fields.assignee === 'object' && fields.assignee.name) {
+        return fields.assignee.name;
+      }
+      if (task.assignee && Array.isArray(task.assignee) && task.assignee.length > 0) {
+        return task.assignee[0]?.name || '';
+      }
+      if (task.assignee && typeof task.assignee === 'object' && task.assignee.name) {
+        return task.assignee.name;
+      }
+      return '';
+    };
+    
+    const ownerName = getOwnerName();
+    const assigneeName = getAssigneeName();
+    
+    // Build the quote object with expanded field mapping
     const quote: QuoteRequest = {
       id: task.task_id.toString(),
-      clientName: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientName) || `Job ${task.job_id || task.task_id}`),
+      clientName: this.cleanString(
+        getFieldValue(FIELD_MAPPINGS.clientName) || 
+        ownerName || 
+        assigneeName || 
+        `Job ${fields.job_id || task.task_id}`
+      ),
       clientEmail: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientEmail) || 'unknown@example.com'),
       clientPhone: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientPhone)),
       projectType: this.cleanString(getFieldValue(FIELD_MAPPINGS.projectType) || 'General Quote'),
-      projectDescription: this.cleanString(getFieldValue(FIELD_MAPPINGS.projectDescription) || 'Project details not specified'),
+      projectDescription: this.cleanString(
+        getFieldValue(FIELD_MAPPINGS.projectDescription) || 
+        fields.brief_description || 
+        'Project details not specified'
+      ),
       budget: this.cleanString(getFieldValue(['Budget', 'budget', 'estimated_budget'])),
-      timeline: this.cleanString(getFieldValue(FIELD_MAPPINGS.estimatedNeedByDate) || this.formatDate(task.due_date)),
-      location: this.cleanString(getFieldValue(['Location', 'location', 'address'])),
+      timeline: this.cleanString(
+        getFieldValue(FIELD_MAPPINGS.estimatedNeedByDate) || 
+        this.formatDate(fields.due_date) ||
+        this.formatDate(task.due_date)
+      ),
+      location: this.cleanString(getFieldValue(FIELD_MAPPINGS.location)),
       status: mappedStatus,
-      submittedAt: this.formatDate(getFieldValue(FIELD_MAPPINGS.createdDate) || task.created_date),
-      updatedAt: this.formatDate(getFieldValue(FIELD_MAPPINGS.updatedDate) || task.updated_date || task.created_date),
+      submittedAt: this.formatDate(
+        getFieldValue(FIELD_MAPPINGS.createdDate) || 
+        task.created_date || 
+        new Date().toISOString()
+      ),
+      updatedAt: this.formatDate(
+        getFieldValue(FIELD_MAPPINGS.updatedDate) || 
+        task.updated_date || 
+        task.created_date || 
+        new Date().toISOString()
+      ),
       estimatedCost: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost)),
-      notes: this.cleanString(getFieldValue(['Notes', 'notes', 'remarks', 'additional_info'])),
+      notes: this.cleanString(
+        getFieldValue(['Notes', 'notes', 'remarks', 'additional_info', 'special_instructions']) ||
+        `Job ID: ${fields.job_id || 'N/A'} | Owner: ${ownerName} | Assignee: ${assigneeName}`
+      ),
       comments: this.parseComments(fields, task)
     };
     
-    // Debug log the mapped quote
+    // Enhanced debug log with status information
     console.log('Mapped quote:', {
       id: quote.id,
       clientName: quote.clientName,
@@ -110,7 +253,10 @@ export class DataMappingService {
       estimatedCost: quote.estimatedCost,
       status: quote.status,
       originalStatus: rawStatus,
-      jobId: task.job_id
+      statusObject: fields.status,
+      jobId: fields.job_id,
+      owner: ownerName,
+      assignee: assigneeName
     });
     
     return quote;
@@ -119,18 +265,31 @@ export class DataMappingService {
   // Convert date to ISO format
   private static formatDate(dateValue: any): string {
     if (!dateValue) return new Date().toISOString();
-    if (typeof dateValue === 'string') return dateValue;
+    if (typeof dateValue === 'string') {
+      // Handle ISO date strings
+      if (dateValue.includes('T') || dateValue.includes('Z')) {
+        return dateValue;
+      }
+      // Try to parse other date formats
+      const parsed = new Date(dateValue);
+      return isNaN(parsed.getTime()) ? new Date().toISOString() : parsed.toISOString();
+    }
     if (dateValue instanceof Date) return dateValue.toISOString();
-    return new Date(dateValue).toISOString();
+    
+    try {
+      return new Date(dateValue).toISOString();
+    } catch {
+      return new Date().toISOString();
+    }
   }
   
-  // Parse numeric values
+  // Parse numeric values with better error handling
   private static parseNumber(value: any): number | undefined {
     if (value === null || value === undefined || value === '') return undefined;
     if (typeof value === 'number') return value;
     if (typeof value === 'string') {
-      // Remove currency symbols and commas
-      const cleaned = value.replace(/[\$,]/g, '');
+      // Remove currency symbols, commas, and spaces
+      const cleaned = value.replace(/[\$,\s]/g, '');
       const parsed = parseFloat(cleaned);
       return isNaN(parsed) ? undefined : parsed;
     }
@@ -139,151 +298,81 @@ export class DataMappingService {
     return isNaN(parsed) ? undefined : parsed;
   }
   
-  // Parse comments from HiSAFE task fields
-  private static parseComments(fields: Record<string, any>, task: HiSAFETask): Comment[] {
-    const comments: Comment[] = [];
-    
-    // Method 1: Check for a comments field
-    const possibleCommentFields = FIELD_MAPPINGS.comments;
-    for (const fieldName of possibleCommentFields) {
-      const commentsField = fields[fieldName];
-      if (commentsField && typeof commentsField === 'string' && commentsField.trim()) {
-        try {
-          // Try to parse as JSON first (for structured comments)
-          const parsedComments = JSON.parse(commentsField);
-          if (Array.isArray(parsedComments)) {
-            return parsedComments.map((comment: any) => ({
-              id: comment.id || Math.random().toString(36),
-              author: comment.author || 'System',
-              authorType: comment.authorType || 'contractor',
-              message: comment.message || comment.text || '',
-              timestamp: comment.timestamp || new Date().toISOString()
-            }));
-          }
-        } catch (error) {
-          // If not JSON, treat as a single comment
-          comments.push({
-            id: Math.random().toString(36),
-            author: 'System',
-            authorType: 'contractor',
-            message: commentsField,
-            timestamp: this.formatDate(fields.updated_date || task.updated_date)
-          });
-          break; // Only add one comment to avoid duplicates
-        }
-      }
-    }
-    
-    return comments;
-  }
-  
-  // Clean string helper
+  // Clean string values
   private static cleanString(value: any): string {
     if (value === null || value === undefined) return '';
     return String(value).trim();
   }
   
-  // Convert QuoteRequest to HiSAFE task fields
-  static mapQuoteToTaskFields(quote: Partial<QuoteRequest>): Record<string, any> {
-    const fields: Record<string, any> = {};
+  // Parse comments from various field formats
+  private static parseComments(fields: Record<string, any>, task: HiSAFETask): Comment[] {
+    const comments: Comment[] = [];
     
-    // Map basic fields - use first field name from each mapping array
-    if (quote.clientName !== undefined) {
-      this.setNestedField(fields, FIELD_MAPPINGS.clientName[0], quote.clientName);
-    }
-    if (quote.clientEmail !== undefined) {
-      this.setNestedField(fields, FIELD_MAPPINGS.clientEmail[0], quote.clientEmail);
-    }
-    if (quote.projectType !== undefined) {
-      fields[FIELD_MAPPINGS.projectType[0]] = quote.projectType;
-    }
-    if (quote.projectDescription !== undefined) {
-      fields[FIELD_MAPPINGS.projectDescription[0]] = quote.projectDescription;
-    }
-    if (quote.timeline !== undefined) {
-      fields[FIELD_MAPPINGS.estimatedNeedByDate[0]] = quote.timeline;
-    }
-    if (quote.estimatedCost !== undefined) {
-      fields[FIELD_MAPPINGS.estimatedCost[0]] = quote.estimatedCost;
-    }
+    // Try to extract comments from various fields
+    const commentSources = [
+      fields.comments, fields.Comments, fields.notes, fields.Notes, 
+      fields.remarks, fields.internal_notes, task.comments
+    ];
     
-    // Map status
-    if (quote.status !== undefined) {
-      fields[FIELD_MAPPINGS.status[0]] = STATUS_MAPPINGS.toHiSAFE[quote.status];
-    }
-    
-    return fields;
-  }
-  
-  // Helper to set nested field values
-  private static setNestedField(fields: Record<string, any>, fieldPath: string, value: any): void {
-    if (fieldPath.includes('.')) {
-      const parts = fieldPath.split('.');
-      let current = fields;
-      for (let i = 0; i < parts.length - 1; i++) {
-        if (!current[parts[i]]) {
-          current[parts[i]] = {};
-        }
-        current = current[parts[i]];
+    commentSources.forEach((source, index) => {
+      if (source && typeof source === 'string' && source.trim()) {
+        comments.push({
+          id: `comment-${index}`,
+          author: 'System',
+          authorType: 'contractor',
+          message: source.trim(),
+          timestamp: new Date().toISOString()
+        });
       }
-      current[parts[parts.length - 1]] = value;
-    } else {
-      fields[fieldPath] = value;
-    }
+    });
+    
+    return comments;
   }
   
-  // Get form ID based on quote status or other criteria
-  static getFormIdForQuote(quote: QuoteRequest): number {
-    // Update this logic based on your actual form IDs in HiSAFE
-    // You might need to check what form IDs are available in your system
-    return 1; // Default form ID - update this based on your HiSAFE setup
-  }
-  
-  // Validate that required fields are present
-  static validateQuoteData(quote: Partial<QuoteRequest>): string[] {
-    const errors: string[] = [];
-    
-    if (!quote.clientName?.trim()) errors.push('Customer name is required');
-    if (!quote.clientEmail?.trim()) errors.push('Customer email is required');
-    if (!quote.projectDescription?.trim()) errors.push('Item/Part description is required');
-    
-    // Validate email format
-    if (quote.clientEmail && !this.isValidEmail(quote.clientEmail)) {
-      errors.push('Valid email address is required');
-    }
-    
-    return errors;
-  }
-  
-  // Email validation helper
+  // Validate email format
   private static isValidEmail(email: string): boolean {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
   }
   
-  // Debug helper to inspect HiSAFE data structure
+  // Enhanced debug helper to inspect HiSAFE data structure
   static debugTaskStructure(task: HiSAFETask): void {
     console.group(`🔍 Task ${task.task_id} Structure Debug:`);
     console.log('✓ Task ID:', task.task_id);
     console.log('✓ Job ID:', task.job_id);
-    console.log('✓ Task Status:', task.status);
+    console.log('✓ Task Status (root):', task.status);
     console.log('✓ Task Created:', task.created_date);
     console.log('✓ Task Updated:', task.updated_date);
     console.log('✓ Due Date:', task.due_date);
     console.log('✓ Brief Description:', task.brief_description);
-    console.log('✓ Owner:', task.owner);
-    console.log('✓ Assignee:', task.assignee);
+    console.log('✓ Owner (root):', task.owner);
+    console.log('✓ Assignee (root):', task.assignee);
     
     if (task.fields && typeof task.fields === 'object') {
       console.log('✓ Available Fields:', Object.keys(task.fields));
       console.group('📋 Field Values:');
+      
+      // Special handling for important fields
+      console.log('🎯 Status Field:', task.fields.status);
+      console.log('🎯 Owner Field:', task.fields.owner);
+      console.log('🎯 Assignee Field:', task.fields.assignee);
+      console.log('🎯 Job ID Field:', task.fields.job_id);
+      console.log('🎯 Brief Description Field:', task.fields.brief_description);
+      console.log('🎯 Due Date Field:', task.fields.due_date);
+      
+      console.group('📋 All Field Values:');
       Object.entries(task.fields).forEach(([key, value]) => {
         const type = typeof value;
-        const preview = type === 'string' && value.length > 50 
-          ? `${String(value).substring(0, 50)}...` 
-          : String(value);
-        console.log(`${key} (${type}):`, preview);
+        if (type === 'object' && value !== null) {
+          console.log(`${key} (${type}):`, value);
+        } else {
+          const preview = type === 'string' && value && value.length > 50 
+            ? `${String(value).substring(0, 50)}...` 
+            : String(value);
+          console.log(`${key} (${type}):`, preview);
+        }
       });
+      console.groupEnd();
       console.groupEnd();
     } else {
       console.warn('⚠️ No fields object found in task');
@@ -341,6 +430,31 @@ export class DataMappingService {
       commonFields: sortedFields.slice(0, 10), // Top 10 most common fields
       allFields: sortedFields
     };
+  }
+  
+  // NEW: Method to extract all available field data for debugging/expansion
+  static extractAllFieldData(task: HiSAFETask): Record<string, any> {
+    const allData: Record<string, any> = {
+      // Root level properties
+      task_id: task.task_id,
+      job_id: task.job_id,
+      created_date: task.created_date,
+      updated_date: task.updated_date,
+      due_date: task.due_date,
+      brief_description: task.brief_description,
+      status_root: task.status,
+      owner_root: task.owner,
+      assignee_root: task.assignee,
+    };
+    
+    // Add all fields
+    if (task.fields) {
+      Object.entries(task.fields).forEach(([key, value]) => {
+        allData[`field_${key}`] = value;
+      });
+    }
+    
+    return allData;
   }
 }
 
