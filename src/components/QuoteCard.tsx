@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { QuoteRequest } from '@/types/quote';
-import { Clock, DollarSign, Mail, Calendar } from 'lucide-react';
+import { Clock, DollarSign, Calendar, Package, Ruler, TimerIcon, CalendarClock } from 'lucide-react';
 
 interface QuoteCardProps {
   quote: QuoteRequest;
@@ -39,6 +39,15 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
       day: 'numeric',
       hour: '2-digit',
       minute: '2-digit'
+    });
+  };
+
+  const formatDateOnly = (dateString: string) => {
+    if (!dateString) return 'Not specified';
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
     });
   };
 
@@ -93,37 +102,74 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
       </CardHeader>
       
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <Mail className="w-4 h-4" />
-              <span>{quote.clientEmail}</span>
-            </div>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="text-sm">
-              <span className="font-medium">Task Form:</span> {quote.projectType || 'Not specified'}
-            </div>
-            <div className="text-sm">
-              <span className="font-medium">Estimated Need by Date:</span> {formatEstimatedNeedByDate(quote.timeline)}
-            </div>
+        {/* Removed customer email and task form fields as requested */}
+        
+        <div className="space-y-2">
+          <div className="text-sm">
+            <span className="font-medium">Estimated Need by Date:</span> {formatEstimatedNeedByDate(quote.timeline)}
           </div>
         </div>
 
         <Separator />
 
+        {/* Updated Item/Part Details Section */}
         <div>
-          <h4 className="font-medium mb-2">Item/Part Details:</h4>
-          <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
-            {quote.projectDescription}
-          </p>
+          <h4 className="font-medium mb-3">Item/Part Details:</h4>
+          <div className="space-y-2">
+            {/* Item Part Name */}
+            {quote.itemPartName && (
+              <div className="flex items-center gap-2 text-sm">
+                <Package className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium">Item/Part Name:</span>
+                <span>{quote.itemPartName}</span>
+              </div>
+            )}
+            
+            {/* Item Part Size */}
+            {quote.itemPartSize && (
+              <div className="flex items-center gap-2 text-sm">
+                <Ruler className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium">Item/Part Size:</span>
+                <span>{quote.itemPartSize}</span>
+              </div>
+            )}
+            
+            {/* Estimated Job Hours */}
+            {quote.estimatedJobHours && (
+              <div className="flex items-center gap-2 text-sm">
+                <TimerIcon className="w-4 h-4 text-muted-foreground" />
+                <span className="font-medium">Estimated Job Hours:</span>
+                <span>{quote.estimatedJobHours} hours</span>
+              </div>
+            )}
+            
+            {/* Project Description (fallback if no specific item details) */}
+            {(!quote.itemPartName && !quote.itemPartSize) && (
+              <p className="text-sm text-muted-foreground bg-muted/50 p-3 rounded-md">
+                {quote.projectDescription}
+              </p>
+            )}
+          </div>
         </div>
 
-        {quote.estimatedCost && (
+        {/* Quote Expiration Date */}
+        {quote.quoteExpirationDate && (
+          <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-md border border-orange-200 dark:border-orange-800">
+            <CalendarClock className="w-4 h-4 text-orange-600" />
+            <div className="text-sm">
+              <span className="font-medium text-orange-800 dark:text-orange-200">Quote Expires:</span>
+              <span className="ml-2 text-orange-700 dark:text-orange-300">
+                {formatDateOnly(quote.quoteExpirationDate)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Quote Total (prioritize quoteTotal over estimatedCost) */}
+        {(quote.quoteTotal || quote.estimatedCost) && (
           <div className="flex items-center gap-2 p-3 bg-primary/5 rounded-md">
             <DollarSign className="w-4 h-4 text-primary" />
-            <span className="font-medium">Quote Total: ${quote.estimatedCost.toLocaleString()}</span>
+            <span className="font-medium">Quote Total: ${(quote.quoteTotal || quote.estimatedCost)?.toLocaleString()}</span>
           </div>
         )}
 
@@ -149,7 +195,6 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
         {/* Contractor Actions - Non-processing states */}
         {viewMode === 'contractor' && onStatusChange && !isProcessing && (
           <div className="flex gap-2 pt-4 border-t">
-          
             {quote.status === 'pending' && (
               <Button
                 size="sm"
@@ -160,11 +205,6 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
               </Button>
             )}
           </div>
-        )}
-
-        {/* Contractor Actions - Processing state */}
-        {viewMode === 'contractor' && onStatusChange && isProcessing && (
-    
         )}
 
         {/* Comment Actions */}
