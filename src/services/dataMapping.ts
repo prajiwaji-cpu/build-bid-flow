@@ -293,7 +293,7 @@ export class DataMappingService {
       quoteExpirationDate: getFieldValue(FIELD_MAPPINGS.quoteExpirationDate) ? 
       this.formatDate(getFieldValue(FIELD_MAPPINGS.quoteExpirationDate)) : undefined,
       quoteTotal: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost)) // Use Quote_Total as primary source
-};
+    };
     // Enhanced debug log
     console.log('✅ Enhanced mapping complete:', {
       id: quote.id,
