@@ -280,6 +280,7 @@ static mapTaskToQuote(task: HiSAFETask): QuoteRequest {
     status: mappedStatus,
     submittedAt: this.formatDate(
       getFieldValue(FIELD_MAPPINGS.createdDate) || 
+      fields.post_date ||  // PRIMARY - Use post_date from HiSAFE
       task.created_date || 
       new Date().toISOString()
     ),
