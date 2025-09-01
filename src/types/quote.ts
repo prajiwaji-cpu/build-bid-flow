@@ -17,6 +17,13 @@ export interface QuoteRequest {
   estimatedCost?: number;
   notes?: string;
   comments: Comment[];
+  
+  // NEW FIELDS
+  itemPartName?: string;
+  itemPartSize?: string;
+  estimatedJobHours?: number;
+  quoteExpirationDate?: string;
+  quoteTotal?: number;
 }
 
 export interface Comment {
