@@ -136,220 +136,189 @@ export const STATUS_MAPPINGS = {
 export class DataMappingService {
   
   // ENHANCED: Convert HiSAFE task to QuoteRequest using ALL new fields
-  static mapTaskToQuote(task: HiSAFETask): QuoteRequest {
-    console.log('🔄 Mapping task with ENHANCED field support:', task.task_id, 'with fields:', task.fields ? Object.keys(task.fields) : 'NO FIELDS');
-    
-    const fields = task.fields || {};
-    
-    // Enhanced helper function to safely get field values
-    const getFieldValue = (possibleFieldNames: string[], defaultValue: any = '') => {
-      for (const fieldName of possibleFieldNames) {
-        // Handle nested field names like 'Customer.name' or 'Comments.text'
-        if (fieldName.includes('.')) {
-          const parts = fieldName.split('.');
-          let value = fields;
-          for (const part of parts) {
-            value = value?.[part];
-            if (value === undefined || value === null) break;
-          }
-          if (value !== undefined && value !== null && value !== '') return value;
-        } else {
-          // Direct field access
-          const value = fields[fieldName];
-          if (value !== undefined && value !== null && value !== '') return value;
+ // Replace the entire mapTaskToQuote function in src/services/dataMapping.ts with this clean version:
+
+static mapTaskToQuote(task: HiSAFETask): QuoteRequest {
+  console.log('🔄 Mapping task with ENHANCED field support:', task.task_id, 'with fields:', task.fields ? Object.keys(task.fields) : 'NO FIELDS');
+  
+  const fields = task.fields || {};
+  
+  // Enhanced helper function to safely get field values
+  const getFieldValue = (possibleFieldNames: string[], defaultValue: any = '') => {
+    for (const fieldName of possibleFieldNames) {
+      // Handle nested field names like 'Customer.name' or 'Comments.text'
+      if (fieldName.includes('.')) {
+        const parts = fieldName.split('.');
+        let value = fields;
+        for (const part of parts) {
+          value = value?.[part];
+          if (value === undefined || value === null) break;
         }
+        if (value !== undefined && value !== null && value !== '') return value;
+      } else {
+        // Direct field access
+        const value = fields[fieldName];
+        if (value !== undefined && value !== null && value !== '') return value;
       }
-      return defaultValue;
-    };
+    }
+    return defaultValue;
+  };
+  
+  // ENHANCED: Handle status object correctly
+  let rawStatus = 'pending';
+  let mappedStatus: QuoteStatus = 'pending';
+  
+  if (fields.status && typeof fields.status === 'object' && fields.status.name) {
+    rawStatus = fields.status.name;
+  } else if (fields.status && typeof fields.status === 'string') {
+    rawStatus = fields.status;
+  } else if (task.status && typeof task.status === 'object' && task.status.name) {
+    rawStatus = task.status.name;
+  } else if (task.status && typeof task.status === 'string') {
+    rawStatus = task.status;
+  }
+  
+  mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus as keyof typeof STATUS_MAPPINGS.fromHiSAFE] || 'pending';
+  
+  // ENHANCED: Handle customer object and other contact info
+  const getCustomerName = () => {
+    // Try Customer.name first (new field)
+    if (fields.Customer && typeof fields.Customer === 'object' && fields.Customer.name) {
+      return fields.Customer.name;
+    }
+    // Fallback to owner/assignee
+    const ownerName = this.getOwnerName(fields, task);
+    const assigneeName = this.getAssigneeName(fields, task);
+    return ownerName || assigneeName || `Task ${task.task_id}`;
+  };
+  
+  // ENHANCED: Build comprehensive project description
+  const buildProjectDescription = () => {
+    const itemName = getFieldValue(FIELD_MAPPINGS.itemPartName);
+    const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
+    const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
+    const briefDesc = getFieldValue(FIELD_MAPPINGS.projectDescription);
+    const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
     
-    // ENHANCED: Handle status object correctly
-    let rawStatus = 'pending';
-    let mappedStatus: QuoteStatus = 'pending';
+    let description = '';
     
-    if (fields.status && typeof fields.status === 'object' && fields.status.name) {
-      rawStatus = fields.status.name;
-    } else if (fields.status && typeof fields.status === 'string') {
-      rawStatus = fields.status;
-    } else if (task.status && typeof task.status === 'object' && task.status.name) {
-      rawStatus = task.status.name;
-    } else if (task.status && typeof task.status === 'string') {
-      rawStatus = task.status;
+    // Primary: Use item name if available
+    if (itemName) {
+      description = this.safeString(itemName);
+      if (itemSize) description += ` (${this.safeString(itemSize)})`;
+      if (quantity) description += ` - ${this.safeString(quantity)}`;
+    } else if (briefDesc) {
+      description = this.safeString(briefDesc);
+    } else {
+      description = 'Project details not specified';
     }
     
-    mappedStatus = STATUS_MAPPINGS.fromHiSAFE[rawStatus as keyof typeof STATUS_MAPPINGS.fromHiSAFE] || 'pending';
+    // Add extended description if available and different
+    const extendedDescStr = this.safeString(extendedDesc);
+    if (extendedDescStr && extendedDescStr !== description && extendedDescStr.trim()) {
+      description += `\n\nAdditional Details: ${extendedDescStr}`;
+    }
     
-    // ENHANCED: Handle customer object and other contact info
-    const getCustomerName = () => {
-      // Try Customer.name first (new field)
-      if (fields.Customer && typeof fields.Customer === 'object' && fields.Customer.name) {
-        return fields.Customer.name;
-      }
-      // Fallback to owner/assignee
-      const ownerName = this.getOwnerName(fields, task);
-      const assigneeName = this.getAssigneeName(fields, task);
-      return ownerName || assigneeName || `Task ${task.task_id}`;
-    };
+    return description;
+  };
+  
+  // ENHANCED: Build comprehensive notes section
+  const buildNotes = () => {
+    const comments = getFieldValue(FIELD_MAPPINGS.comments);
+    const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
+    const estimatedHours = getFieldValue(FIELD_MAPPINGS.estimatedHours);
+    const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
+    const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
     
-    // ENHANCED: Build comprehensive project description
-   const buildProjectDescription = () => {
-  const itemName = getFieldValue(FIELD_MAPPINGS.itemPartName);
-  const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
-  const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
-  const briefDesc = getFieldValue(FIELD_MAPPINGS.projectDescription);
-  const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
-  
-  let description = '';
-       // Primary: Use item name if available
-  if (itemName) {
-    description = this.safeString(itemName);
-    if (itemSize) description += ` (${this.safeString(itemSize)})`;
-    if (quantity) description += ` - ${this.safeString(quantity)}`;
-  } else if (briefDesc) {
-    description = this.safeString(briefDesc);
-  } else {
-    description = 'Project details not specified';
-  }
-  
-  // Add extended description if available and different
-  const extendedDescStr = this.safeString(extendedDesc);
-  if (extendedDescStr && extendedDescStr !== description && extendedDescStr.trim()) {
-    description += `\n\nAdditional Details: ${extendedDescStr}`;
-  }
-  
-  return description;
-};
-      // Primary: Use item name if available
-      if (itemName) {
-        description = itemName;
-        if (itemSize) description += ` (${itemSize})`;
-        if (quantity) description += ` - ${quantity}`;
-      } else if (briefDesc) {
-        description = briefDesc;
-      } else {
-        description = 'Project details not specified';
-      }
-      
-      // Add extended description if available and different
-      if (extendedDesc && extendedDesc !== description && extendedDesc.trim()) {
-        description += `\n\nAdditional Details: ${extendedDesc}`;
-      }
-      
-      return description;
-    };
+    const notesParts = [];
     
-    // ENHANCED: Build comprehensive notes section
-   const buildNotes = () => {
-  const comments = getFieldValue(FIELD_MAPPINGS.comments);
-  const extendedDesc = getFieldValue(FIELD_MAPPINGS.extendedDescription);
-  const estimatedHours = getFieldValue(FIELD_MAPPINGS.estimatedHours);
-  const quantity = getFieldValue(FIELD_MAPPINGS.quantity);
-  const itemSize = getFieldValue(FIELD_MAPPINGS.itemPartSize);
-  
-  const notesParts = [];
-  
-  const commentsStr = this.safeString(comments);
-  if (commentsStr && commentsStr.trim()) {
-    notesParts.push(`Comments: ${commentsStr}`);
-  }
-  
-  if (estimatedHours) {
-    notesParts.push(`Estimated Hours: ${this.safeString(estimatedHours)}`);
-  }
-  
-  if (quantity) {
-    notesParts.push(`Quantity: ${this.safeString(quantity)}`);
-  }
-  
-  if (itemSize) {
-    notesParts.push(`Size/Specification: ${this.safeString(itemSize)}`);
-  }
-  
-  // Add system info
-  const ownerName = this.getOwnerName(fields, task);
-  const assigneeName = this.getAssigneeName(fields, task);
-  const systemInfo = [`Job ID: ${fields.job_id || task.task_id}`];
-  
-  if (ownerName) systemInfo.push(`Owner: ${ownerName}`);
-  if (assigneeName) systemInfo.push(`Assigned: ${assigneeName}`);
-  
-  notesParts.push(systemInfo.join(' | '));
-  
-  return notesParts.join('\n\n');
-};
-      
-      // Add system info
-      const ownerName = this.getOwnerName(fields, task);
-      const assigneeName = this.getAssigneeName(fields, task);
-      const systemInfo = [`Job ID: ${fields.job_id || task.task_id}`];
-      
-      if (ownerName) systemInfo.push(`Owner: ${ownerName}`);
-      if (assigneeName) systemInfo.push(`Assigned: ${assigneeName}`);
-      
-      notesParts.push(systemInfo.join(' | '));
-      
-      return notesParts.join('\n\n');
-    };
+    const commentsStr = this.safeString(comments);
+    if (commentsStr && commentsStr.trim()) {
+      notesParts.push(`Comments: ${commentsStr}`);
+    }
     
-    // Fix for the quote object in src/services/dataMapping.ts
-// Replace the entire quote object definition (around line 250-295) with this:
-
-// ENHANCED: Build the quote object with all new fields
-const quote: QuoteRequest = {
-  id: task.task_id.toString(),
-  clientName: this.cleanString(getCustomerName()),
-  clientEmail: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientEmail) || 'unknown@example.com'),
-  clientPhone: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientPhone)),
-  projectType: this.cleanString(getFieldValue(FIELD_MAPPINGS.projectType) || 'Manufacturing Quote'),
-  projectDescription: this.cleanString(buildProjectDescription()),
-  budget: this.cleanString(getFieldValue(['Budget', 'budget', 'estimated_budget'])),
-  timeline: this.cleanString(
-    getFieldValue(FIELD_MAPPINGS.estimatedNeedByDate) || 
-    this.formatDate(fields.due_date) ||
-    this.formatDate(task.due_date)
-  ),
-  location: this.cleanString(getFieldValue(FIELD_MAPPINGS.location)),
-  status: mappedStatus,
-  submittedAt: this.formatDate(
-    getFieldValue(FIELD_MAPPINGS.createdDate) || 
-    task.created_date || 
-    new Date().toISOString()
-  ),
-  updatedAt: this.formatDate(
-    getFieldValue(FIELD_MAPPINGS.updatedDate) || 
-    task.updated_date || 
-    task.created_date || 
-    new Date().toISOString()
-  ),
-  estimatedCost: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost)),
-  notes: this.cleanString(buildNotes()),
-  comments: this.parseComments(fields, task),
-  
-  // NEW FIELDS - Extract from HiSAFE data
-  itemPartName: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartName)),
-  itemPartSize: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartSize)),
-  estimatedJobHours: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedHours)),
-  quoteExpirationDate: getFieldValue(FIELD_MAPPINGS.quoteExpirationDate) ? 
-    this.formatDate(getFieldValue(FIELD_MAPPINGS.quoteExpirationDate)) : undefined,
-  quoteTotal: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost))
-};
-    // Enhanced debug log
-    console.log('✅ Enhanced mapping complete:', {
-      id: quote.id,
-      clientName: quote.clientName,
-      projectDescription: quote.projectDescription.substring(0, 100) + '...',
-      estimatedCost: quote.estimatedCost,
-      status: quote.status,
-      originalStatus: rawStatus,
-      timeline: quote.timeline,
-      customerObject: fields.Customer,
-      quoteTotal: fields.Quote_Total,
-      itemPartName: fields.Item_Part_Name,
-      estimatedNeedBy: fields.Estimated_Need_by_Date
-    });
+    if (estimatedHours) {
+      notesParts.push(`Estimated Hours: ${this.safeString(estimatedHours)}`);
+    }
     
-    return quote;
-  }
+    if (quantity) {
+      notesParts.push(`Quantity: ${this.safeString(quantity)}`);
+    }
+    
+    if (itemSize) {
+      notesParts.push(`Size/Specification: ${this.safeString(itemSize)}`);
+    }
+    
+    // Add system info
+    const ownerName = this.getOwnerName(fields, task);
+    const assigneeName = this.getAssigneeName(fields, task);
+    const systemInfo = [`Job ID: ${fields.job_id || task.task_id}`];
+    
+    if (ownerName) systemInfo.push(`Owner: ${ownerName}`);
+    if (assigneeName) systemInfo.push(`Assigned: ${assigneeName}`);
+    
+    notesParts.push(systemInfo.join(' | '));
+    
+    return notesParts.join('\n\n');
+  };
   
+  // ENHANCED: Build the quote object with all new fields
+  const quote: QuoteRequest = {
+    id: task.task_id.toString(),
+    clientName: this.cleanString(getCustomerName()),
+    clientEmail: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientEmail) || 'unknown@example.com'),
+    clientPhone: this.cleanString(getFieldValue(FIELD_MAPPINGS.clientPhone)),
+    projectType: this.cleanString(getFieldValue(FIELD_MAPPINGS.projectType) || 'Manufacturing Quote'),
+    projectDescription: this.cleanString(buildProjectDescription()),
+    budget: this.cleanString(getFieldValue(['Budget', 'budget', 'estimated_budget'])),
+    timeline: this.cleanString(
+      getFieldValue(FIELD_MAPPINGS.estimatedNeedByDate) || 
+      this.formatDate(fields.due_date) ||
+      this.formatDate(task.due_date)
+    ),
+    location: this.cleanString(getFieldValue(FIELD_MAPPINGS.location)),
+    status: mappedStatus,
+    submittedAt: this.formatDate(
+      getFieldValue(FIELD_MAPPINGS.createdDate) || 
+      task.created_date || 
+      new Date().toISOString()
+    ),
+    updatedAt: this.formatDate(
+      getFieldValue(FIELD_MAPPINGS.updatedDate) || 
+      task.updated_date || 
+      task.created_date || 
+      new Date().toISOString()
+    ),
+    estimatedCost: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost)),
+    notes: this.cleanString(buildNotes()),
+    comments: this.parseComments(fields, task),
+    
+    // NEW FIELDS - Extract from HiSAFE data
+    itemPartName: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartName)),
+    itemPartSize: this.cleanString(getFieldValue(FIELD_MAPPINGS.itemPartSize)),
+    estimatedJobHours: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedHours)),
+    quoteExpirationDate: getFieldValue(FIELD_MAPPINGS.quoteExpirationDate) ? 
+      this.formatDate(getFieldValue(FIELD_MAPPINGS.quoteExpirationDate)) : undefined,
+    quoteTotal: this.parseNumber(getFieldValue(FIELD_MAPPINGS.estimatedCost))
+  };
+  
+  // Enhanced debug log
+  console.log('✅ Enhanced mapping complete:', {
+    id: quote.id,
+    clientName: quote.clientName,
+    projectDescription: quote.projectDescription.substring(0, 100) + '...',
+    estimatedCost: quote.estimatedCost,
+    status: quote.status,
+    originalStatus: rawStatus,
+    timeline: quote.timeline,
+    customerObject: fields.Customer,
+    quoteTotal: fields.Quote_Total,
+    itemPartName: fields.Item_Part_Name,
+    estimatedNeedBy: fields.Estimated_Need_by_Date
+  });
+  
+  return quote;
+}
   // Helper methods
 
 private static safeString(value: any): string {
