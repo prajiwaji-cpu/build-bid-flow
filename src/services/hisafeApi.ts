@@ -408,7 +408,187 @@ async appendToComments(taskId: number, newComment: string, author: string = 'Use
     throw error;
   }
 }
+// FIRST: Add this debug method to src/services/hisafeApi.ts to understand field structures
 
+async debugTaskFieldStructure(taskId: number) {
+  try {
+    console.log('🔍 DEBUGGING: Getting task metadata and field structure for task:', taskId);
+    
+    // Get task metadata (this is what we use for updates)
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    console.log('📋 Task Metadata Structure:', JSON.stringify(taskMetadata, null, 2));
+    
+    // Also get the raw task data 
+    const taskData = await this.getTask(taskId);
+    console.log('📊 Raw Task Data:', JSON.stringify(taskData, null, 2));
+    
+    // Focus on the key fields we're trying to update
+    console.group('🎯 Key Field Analysis:');
+    
+    if (taskData.fields?.Comments) {
+      console.log('Comments field structure:', JSON.stringify(taskData.fields.Comments, null, 2));
+    }
+    
+    if (taskData.fields?.status) {
+      console.log('Status field structure:', JSON.stringify(taskData.fields.status, null, 2));
+    }
+    
+    if (taskData.fields?.extended_description) {
+      console.log('Extended Description structure:', JSON.stringify(taskData.fields.extended_description, null, 2));
+    }
+    
+    console.groupEnd();
+    
+    return { taskMetadata, taskData };
+    
+  } catch (error) {
+    console.error('Debug failed:', error);
+    throw error;
+  }
+}
+
+// CORRECTED: Update task method that handles object field structures properly
+async updateTask(taskId: number, fields: Record<string, any>) {
+  try {
+    console.log('🔍 Starting task update for:', taskId);
+    console.log('📝 Fields to update:', JSON.stringify(fields, null, 2));
+
+    // STEP 1: Get task metadata to obtain editSessionToken
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    
+    if (!taskMetadata || !taskMetadata.editSessionToken) {
+      throw new Error('Could not get edit session token for task');
+    }
+
+    console.log('🔑 Got editSessionToken:', taskMetadata.editSessionToken);
+
+    // STEP 2: Get current task data to understand field structures
+    const currentTask = await this.getTask(taskId);
+    console.log('📊 Current task structure for field analysis:', {
+      comments: currentTask.fields?.Comments,
+      status: currentTask.fields?.status,
+      extended_description: currentTask.fields?.extended_description
+    });
+
+    // STEP 3: Transform fields to match expected object structures
+    const transformedFields: Record<string, any> = {};
+    
+    Object.entries(fields).forEach(([fieldName, fieldValue]) => {
+      if (fieldName === 'Comments') {
+        // Comments appears to be an object with text property
+        if (typeof fieldValue === 'string') {
+          transformedFields[fieldName] = { text: fieldValue };
+        } else {
+          transformedFields[fieldName] = fieldValue;
+        }
+      } else if (fieldName === 'status') {
+        // Status is already properly formatted as object with id, name, type
+        transformedFields[fieldName] = fieldValue;
+      } else if (fieldName === 'extended_description') {
+        // Extended description might also be an object
+        if (typeof fieldValue === 'string') {
+          transformedFields[fieldName] = { text: fieldValue };
+        } else {
+          transformedFields[fieldName] = fieldValue;
+        }
+      } else {
+        // For other fields, use as-is
+        transformedFields[fieldName] = fieldValue;
+      }
+    });
+
+    console.log('🔄 Transformed fields for API:', JSON.stringify(transformedFields, null, 2));
+
+    // STEP 4: Build request body exactly like working ApiClient.tsx pattern
+    const requestBody = {
+      fields: transformedFields,
+      options: {
+        editSessionToken: taskMetadata.editSessionToken
+      }
+    };
+    
+    console.log('📤 Final PATCH Request Body:', JSON.stringify(requestBody, null, 2));
+    
+    // STEP 5: Make the PATCH request
+    const result = await this.request('PATCH', `task/${taskId}`, {
+      body: JSON.stringify(requestBody),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+
+    console.log('✅ Task update successful:', result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Task update failed:', error);
+    throw error;
+  }
+}
+
+// SIMPLIFIED: Status update method that handles object structure
+async updateTaskStatus(taskId: number, statusId: number, statusName: string, statusType: "Open" | "InProgress" | "Closed") {
+  console.log(`🎯 Updating status for task ${taskId} to:`, { id: statusId, name: statusName, type: statusType });
+  
+  return await this.updateTask(taskId, {
+    status: {
+      id: statusId,
+      name: statusName,
+      type: statusType
+    }
+  });
+}
+
+// CORRECTED: Comments update that uses object structure
+async appendToComments(taskId: number, newComment: string, author: string = 'User') {
+  try {
+    console.log(`💬 Appending comment to task ${taskId}:`, newComment);
+    
+    // Get current task to read existing comments
+    const currentTask = await this.getTask(taskId);
+    
+    // Extract existing comments text from object structure
+    let existingCommentsText = '';
+    if (currentTask.fields?.Comments) {
+      if (typeof currentTask.fields.Comments === 'object' && currentTask.fields.Comments.text) {
+        existingCommentsText = String(currentTask.fields.Comments.text);
+      } else if (typeof currentTask.fields.Comments === 'string') {
+        existingCommentsText = currentTask.fields.Comments;
+      }
+    }
+    
+    // Format new comment with timestamp
+    const timestamp = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const newCommentEntry = `[${timestamp}] ${author}: ${newComment}`;
+    
+    // Append to existing comments
+    const updatedCommentsText = existingCommentsText 
+      ? `${existingCommentsText}\n\n${newCommentEntry}`
+      : newCommentEntry;
+    
+    console.log('📝 Comments update details:', {
+      existing: existingCommentsText,
+      new: newCommentEntry,
+      final: updatedCommentsText
+    });
+    
+    // Update using object structure (Comments field expects { text: "..." })
+    return await this.updateTask(taskId, {
+      Comments: { text: updatedCommentsText }
+    });
+    
+  } catch (error) {
+    console.error('Failed to append comment:', error);
+    throw error;
+  }
+}
 // Helper method for safe string conversion
 private safeString(value: any): string {
   if (value === null || value === undefined) return '';
