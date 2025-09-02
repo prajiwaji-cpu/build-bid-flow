@@ -191,6 +191,7 @@ class QuotesService {
   
   // Update quote status
 // Replace the updateQuoteStatus method in src/services/quotesService.ts with this fixed version:
+// Replace the updateQuoteStatus method in src/services/quotesService.ts with this corrected version:
 
 async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequest> {
   try {
@@ -214,16 +215,16 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
       updatedAt: new Date().toISOString() 
     };
     
+    // FIXED: Define statusMappings in the correct scope
+    const statusMappings = {
+      'pending': { id: 5, name: 'Awaiting Approval', type: 'Open' },
+      'processing': { id: 6, name: 'Work in Progress', type: 'InProgress' },
+      'approved': { id: 3, name: 'Quote Complete', type: 'Open' },
+      'denied': { id: 7, name: 'Quote Denied', type: 'Closed' }
+    };
+    
     // Try to update in HiSAFE with the correct status ID format
     try {
-      // FIXED: Use status IDs instead of names
-      const statusMappings = {
-        'pending': { id: 5, name: 'Awaiting Approval', type: 'Open' },
-        'processing': { id: 6, name: 'Work in Progress', type: 'InProgress' }, // Adjust ID as needed
-        'approved': { id: 3, name: 'Quote Complete', type: 'Open' },
-        'denied': { id: 7, name: 'Quote Denied', type: 'Closed' } // Adjust ID as needed
-      };
-      
       const hisafeStatus = statusMappings[status];
       if (hisafeStatus) {
         // Send status as ID-based object
@@ -242,24 +243,30 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
       // Try simpler format - just the ID
       try {
         console.log('🔄 Trying simple status ID format...');
-        const statusIdMappings = {
-          'pending': 5,   // Awaiting Approval
-          'approved': 3,  // Quote Complete  
-          'processing': 6, // Work in Progress (adjust as needed)
-          'denied': 7     // Quote Denied (adjust as needed)
-        };
-        
-        const statusId = statusIdMappings[status];
-        if (statusId) {
-          // Try in updateQuoteStatus - simple number approach
-await hisafeApi.updateTask(taskId, {
-  status: 3  // Just send the ID as a number
-});
-          console.log(`✅ Updated task ${taskId} status to ID ${statusId} with simple format`);
+        const hisafeStatus = statusMappings[status];
+        if (hisafeStatus) {
+          await hisafeApi.updateTask(taskId, {
+            status: { id: hisafeStatus.id }
+          });
+          console.log(`✅ Updated task ${taskId} status to ID ${hisafeStatus.id} with simple format`);
         }
       } catch (alternativeError) {
         console.error('❌ Both status update methods failed:', alternativeError);
-        throw alternativeError;
+        
+        // Try just sending the number
+        try {
+          console.log('🔄 Trying just status ID number...');
+          const hisafeStatus = statusMappings[status];
+          if (hisafeStatus) {
+            await hisafeApi.updateTask(taskId, {
+              status: hisafeStatus.id
+            });
+            console.log(`✅ Updated task ${taskId} status to ${hisafeStatus.id} as number`);
+          }
+        } catch (finalError) {
+          console.error('❌ All status update methods failed:', finalError);
+          throw finalError;
+        }
       }
     }
     
