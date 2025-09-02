@@ -214,38 +214,51 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
       updatedAt: new Date().toISOString() 
     };
     
-    // Try to update in HiSAFE with the correct format
+    // Try to update in HiSAFE with the correct status ID format
     try {
+      // FIXED: Use status IDs instead of names
       const statusMappings = {
-        'pending': 'Awaiting Approval',
-        'processing': 'Work in Progress', 
-        'approved': 'Quote Complete',
-        'denied': 'Quote Denied'
+        'pending': { id: 5, name: 'Awaiting Approval', type: 'Open' },
+        'processing': { id: 6, name: 'Work in Progress', type: 'InProgress' }, // Adjust ID as needed
+        'approved': { id: 3, name: 'Quote Complete', type: 'Open' },
+        'denied': { id: 7, name: 'Quote Denied', type: 'Closed' } // Adjust ID as needed
       };
       
       const hisafeStatus = statusMappings[status];
       if (hisafeStatus) {
-        // FIX: Send status as a simple string field, not an object
+        // Send status as ID-based object
         await hisafeApi.updateTask(taskId, {
-          status: hisafeStatus  // Send as direct field value
+          status: {
+            id: hisafeStatus.id,
+            name: hisafeStatus.name,
+            type: hisafeStatus.type
+          }
         });
-        console.log(`✅ Updated task ${taskId} status to ${hisafeStatus} in HiSAFE`);
+        console.log(`✅ Updated task ${taskId} status to ID ${hisafeStatus.id} (${hisafeStatus.name}) in HiSAFE`);
       }
     } catch (updateError) {
-      console.warn(`⚠️ Failed to update HiSAFE status for task ${taskId}:`, updateError);
-      console.warn('Response details:', updateError);
+      console.error(`⚠️ Failed to update HiSAFE status for task ${taskId}:`, updateError);
       
-      // Try alternative format - send status with name property
+      // Try simpler format - just the ID
       try {
-        console.log('🔄 Trying alternative status format...');
-        const hisafeStatus = statusMappings[status];
-        await hisafeApi.updateTask(taskId, {
-          status: { name: hisafeStatus }
-        });
-        console.log(`✅ Updated task ${taskId} status with alternative format`);
+        console.log('🔄 Trying simple status ID format...');
+        const statusIdMappings = {
+          'pending': 5,   // Awaiting Approval
+          'approved': 3,  // Quote Complete  
+          'processing': 6, // Work in Progress (adjust as needed)
+          'denied': 7     // Quote Denied (adjust as needed)
+        };
+        
+        const statusId = statusIdMappings[status];
+        if (statusId) {
+          await hisafeApi.updateTask(taskId, {
+            status: { id: statusId }
+          });
+          console.log(`✅ Updated task ${taskId} status to ID ${statusId} with simple format`);
+        }
       } catch (alternativeError) {
         console.error('❌ Both status update methods failed:', alternativeError);
-        // Continue with local update even if remote update fails
+        throw alternativeError;
       }
     }
     
