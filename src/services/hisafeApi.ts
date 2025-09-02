@@ -524,12 +524,13 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
 // Add these methods to src/services/hisafeApi.ts
 
 // FIXED: Complete updateTask method that gets editSessionToken first
+ STEP 1: Replace your updateTask method in hisafeApi.ts with this clean version:
+
 async updateTask(taskId: number, fields: Record<string, any>) {
   try {
     console.log('🔍 Starting task update for:', taskId);
     console.log('📝 Fields to update:', JSON.stringify(fields, null, 2));
 
-    // STEP 1: Get task metadata to obtain editSessionToken (critical for updates!)
     const taskMetadata = await this.request("GET", `task/${taskId}`);
     
     if (!taskMetadata || !taskMetadata.editSessionToken) {
@@ -538,19 +539,15 @@ async updateTask(taskId: number, fields: Record<string, any>) {
 
     console.log('🔑 Got editSessionToken:', taskMetadata.editSessionToken);
 
-    // STEP 2: Build request body exactly like working ApiClient.tsx pattern
     const requestBody = {
       fields,
       options: {
-        editSessionToken: taskMetadata.editSessionToken  // ← This was the missing piece!
+        editSessionToken: taskMetadata.editSessionToken
       }
     };
     
-    console.log('📤 PATCH Request Details:');
-    console.log('  URL:', `task/${taskId}`);
-    console.log('  Full Request Body:', JSON.stringify(requestBody, null, 2));
+    console.log('📤 PATCH Request Body:', JSON.stringify(requestBody, null, 2));
     
-    // STEP 3: Make the PATCH request with proper structure
     const result = await this.request('PATCH', `task/${taskId}`, {
       body: JSON.stringify(requestBody),
       headers: {
@@ -1053,6 +1050,132 @@ private safeString(value: any): string {
   }
 
 } // End of HiSAFEApi class
+// STEP 2: Add these methods at the VERY END of your HiSAFEApi class 
+// (just before the final closing bracket of the class)
+
+async testBasicTaskAccess(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: Basic task access for task', taskId);
+    
+    const taskData = await this.getTask(taskId);
+    console.log('✅ GET task successful:', !!taskData);
+    
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    console.log('✅ GET task metadata successful:', !!taskMetadata);
+    console.log('📝 EditSessionToken obtained:', !!taskMetadata.editSessionToken);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Basic task access failed:', error);
+    return false;
+  }
+}
+
+async testEmptyUpdate(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: Empty update for task', taskId);
+    
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    
+    const result = await this.request('PATCH', `task/${taskId}`, {
+      body: JSON.stringify({
+        fields: {},
+        options: {
+          editSessionToken: taskMetadata.editSessionToken
+        }
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    console.log('✅ Empty update successful:', result);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Empty update failed:', error);
+    return false;
+  }
+}
+async testStringFieldUpdate(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: String field update for task', taskId);
+    
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    const currentTask = await this.getTask(taskId);
+    
+    const currentDesc = currentTask.brief_description || currentTask.fields?.brief_description || 'Test';
+    const testDesc = currentDesc + ' (Test)';
+    
+    const result = await this.request('PATCH', `task/${taskId}`, {
+      body: JSON.stringify({
+        fields: {
+          brief_description: testDesc
+        },
+        options: {
+          editSessionToken: taskMetadata.editSessionToken
+        }
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    console.log('✅ String field update successful:', result);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ String field update failed:', error);
+    return false;
+  }
+}
+
+async testExactApiClientPattern(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: Exact ApiClient.tsx pattern for task', taskId);
+    
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    
+    const result = await this.request("PATCH", `task/${taskId}`, {
+      body: JSON.stringify({
+        fields: {
+          brief_description: (taskMetadata.initialState?.brief_description || 'Test') + ' (API Test)'
+        },
+        options: {
+          editSessionToken: taskMetadata.editSessionToken
+        }
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    console.log('✅ Exact ApiClient pattern successful:', result);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Exact ApiClient pattern failed:', error);
+    return false;
+  }
+}
+
+private safeString(value: any): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    if (value.text) return String(value.text);
+    if (value.name) return String(value.name);
+    if (value.value) return String(value.value);
+    try {
+      const stringified = JSON.stringify(value);
+      return stringified === '{}' ? '' : stringified;
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
+}
 }
 
 // Create and export service instance
