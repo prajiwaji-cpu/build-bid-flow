@@ -218,52 +218,48 @@ class HiSAFEApiService {
   }
 
   // FIXED: Match original requestImpl function exactly
-  private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
-    // FIXED: Add alwaysAddParams exactly like original
-    url += (url.includes("?") ? "&" : "?") + this.alwaysAddParams;
-    
-    const response = await fetch(this.getApiUrl(url), {
-      method,
-      mode: "cors",
-      cache: "no-cache",
-      redirect: "follow",
-      referrerPolicy: 'no-referrer',
-      ...otherArgs,
-      headers: {
-        ...this.headers,
-        ...(otherArgs?.headers)
-      }
-    });
-
-    if (response.status >= 200 && response.status <= 299) {
-      return await response.json() as T;
-    } else if (response.status === 401) {
-      // Reauthorize (exactly like original)
-      location.href = await this.getAuthorizeUrl();
-      if (on401) {
-        return on401();
-      }
-      throw new Error("We shouldn't get this far. We should have left the page");
-    } else {
-      // Check if there was an error message (exactly like original)
-      let message = await response.text();
-      if (message[0] === "{") {
-        const jsonValue: any = JSON.parse(message);
-        if (jsonValue.message) {
-          message = jsonValue.message;
-        }
-      }
-
-      if (response.status === 500) {
-        alert("An unhandled error occured, you may want to reload the page and try again.\n\n" + message);
-      } else {
-        alert("An error occured:\n" + message);
-      }
-
-      console.error("Request failed with " + response.status, message, response);
-      throw new Error(`Request failed with ${response.status} to: ${response.url}`);
+ // Update the requestImpl method in hisafeApi.ts to capture error details
+private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
+  url += (url.includes("?") ? "&" : "?") + this.alwaysAddParams;
+  
+  const response = await fetch(this.getApiUrl(url), {
+    method,
+    mode: "cors",
+    cache: "no-cache",
+    redirect: "follow",
+    referrerPolicy: 'no-referrer',
+    ...otherArgs,
+    headers: {
+      ...this.headers,
+      ...(otherArgs?.headers)
     }
+  });
+
+  if (response.status >= 200 && response.status <= 299) {
+    return await response.json() as T;
+  } else if (response.status === 401) {
+    location.href = await this.getAuthorizeUrl();
+    if (on401) {
+      return on401();
+    }
+    throw new Error("We shouldn't get this far. We should have left the page");
+  } else {
+    // ENHANCED: Capture 400 error details
+    let message = await response.text();
+    console.log('🔍 Raw error response:', message);
+    
+    if (message[0] === "{") {
+      const jsonValue: any = JSON.parse(message);
+      if (jsonValue.message) {
+        message = jsonValue.message;
+      }
+      console.log('🔍 Parsed error JSON:', jsonValue);
+    }
+
+    console.error("Request failed with " + response.status, message, response);
+    throw new Error(`Request failed with ${response.status}: ${message} to: ${response.url}`);
   }
+}
 
   // FIXED: Match original getPortalMetadata exactly
   async getPortalMetadata() {
