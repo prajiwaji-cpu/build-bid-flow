@@ -111,7 +111,7 @@ class HiSAFEApiService {
       clientId: import.meta.env.VITE_HISAFE_CLIENT_ID || '',
       portalSlug: import.meta.env.VITE_HISAFE_PORTAL_SLUG || 'quotes',
       featureType: 'PORTAL',
-      apiVersion: '9.0.0'
+      apiVersion: '10.1.0'
     };
 
     // FIXED: Create alwaysAddParams exactly like original ApiClient
@@ -315,18 +315,18 @@ class HiSAFEApiService {
 
   // Update a task - FIXED: Match original editTaskData pattern
  // Temporary debug version in hisafeApi.ts
+// Enhanced debug version in hisafeApi.ts
 async updateTask(taskId: number, fields: Record<string, any>) {
   const requestBody = {
     fields,
     options: {}
   };
   
-  console.log('🔍 PATCH Request Details:', {
-    url: `task/${taskId}`,
-    body: requestBody,
-    taskId,
-    fields
-  });
+  console.log('🔍 PATCH Request Details:');
+  console.log('  URL:', `task/${taskId}`);
+  console.log('  TaskId:', taskId);
+  console.log('  Fields Object:', JSON.stringify(fields, null, 2));
+  console.log('  Full Request Body:', JSON.stringify(requestBody, null, 2));
   
   return this.request('PATCH', `task/${taskId}`, {
     body: JSON.stringify(requestBody),
@@ -335,7 +335,6 @@ async updateTask(taskId: number, fields: Record<string, any>) {
     }
   });
 }
-
   // Get all tasks using the working portal approach
   async getAllTasks(): Promise<HiSAFETask[]> {
     try {
