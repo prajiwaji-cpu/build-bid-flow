@@ -159,7 +159,90 @@ class QuotesService {
     
     return 'pending';
   }
+// Add this method to src/services/quotesService.ts for testing field structures
 
+// TEST METHOD: Use this to understand field structures before attempting updates
+async debugTaskStructure(quoteId: string): Promise<void> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🔍 DEBUGGING FIELD STRUCTURES for task ${taskId}`);
+    
+    // Use the new debug method
+    const debugResult = await hisafeApi.debugTaskFieldStructure(taskId);
+    
+    // Show exactly what we're working with
+    console.group('🎯 SPECIFIC FIELD ANALYSIS:');
+    
+    const fields = debugResult.taskData.fields;
+    
+    if (fields?.Comments) {
+      console.log('📝 Comments Field Analysis:');
+      console.log('  Type:', typeof fields.Comments);
+      console.log('  Structure:', JSON.stringify(fields.Comments, null, 2));
+      console.log('  Has .text property?', fields.Comments.text !== undefined);
+      console.log('  Current text value:', fields.Comments.text);
+    }
+    
+    if (fields?.status) {
+      console.log('📊 Status Field Analysis:');
+      console.log('  Type:', typeof fields.status);
+      console.log('  Structure:', JSON.stringify(fields.status, null, 2));
+      console.log('  Current ID:', fields.status.id);
+      console.log('  Current Name:', fields.status.name);
+      console.log('  Current Type:', fields.status.type);
+    }
+    
+    if (fields?.extended_description) {
+      console.log('📄 Extended Description Analysis:');
+      console.log('  Type:', typeof fields.extended_description);
+      console.log('  Structure:', JSON.stringify(fields.extended_description, null, 2));
+      console.log('  Has .text property?', fields.extended_description.text !== undefined);
+    }
+    
+    console.groupEnd();
+    
+  } catch (error) {
+    console.error('Debug failed:', error);
+    throw error;
+  }
+}
+
+// SAFE TEST METHOD: Try a simple field update that shouldn't cause 500 errors
+async testSimpleFieldUpdate(quoteId: string): Promise<boolean> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🧪 TESTING: Simple field update for task ${taskId}`);
+    
+    // First debug the structure
+    await this.debugTaskStructure(quoteId);
+    
+    // Try updating a simple string field first (brief_description is always a string)
+    const currentTask = await hisafeApi.getTask(taskId);
+    const currentDescription = currentTask.brief_description || 'Test Description';
+    const newDescription = `${currentDescription} (Updated ${new Date().toLocaleTimeString()})`;
+    
+    console.log('🔄 Attempting to update brief_description field...');
+    
+    await hisafeApi.updateTask(taskId, {
+      brief_description: newDescription
+    });
+    
+    console.log('✅ Simple field update successful!');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Simple field update failed:', error);
+    return false;
+  }
+}
   // Get single quote by ID
   async getQuote(quoteId: string): Promise<QuoteRequest | null> {
     try {
