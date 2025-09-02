@@ -46,7 +46,214 @@ export interface HiSAFEAssignee {
   contact_id: number;
   name: string;
 }
+// COMPREHENSIVE DIAGNOSIS: Add these methods to src/services/hisafeApi.ts
 
+// Step 1: Verify the basic API connection and task access
+async testBasicTaskAccess(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: Basic task access for task', taskId);
+    
+    // Test GET request first
+    const taskData = await this.getTask(taskId);
+    console.log('✅ GET task successful:', !!taskData);
+    
+    // Test GET metadata request
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    console.log('✅ GET task metadata successful:', !!taskMetadata);
+    console.log('📝 EditSessionToken obtained:', !!taskMetadata.editSessionToken);
+    
+    return true;
+  } catch (error) {
+    console.error('❌ Basic task access failed:', error);
+    return false;
+  }
+}
+
+// Step 2: Test a completely empty update (should return "no changes")
+async testEmptyUpdate(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: Empty update for task', taskId);
+    
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    
+    // Send completely empty fields - this should not cause a 500 error
+    const requestBody = {
+      fields: {}, // Empty - should be safe
+      options: {
+        editSessionToken: taskMetadata.editSessionToken
+      }
+    };
+    
+    console.log('📤 Empty update request:', JSON.stringify(requestBody, null, 2));
+    
+    const result = await this.request('PATCH', `task/${taskId}`, {
+      body: JSON.stringify(requestBody),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    console.log('✅ Empty update successful:', result);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Empty update failed:', error);
+    console.log('🔍 This suggests a fundamental API issue, not a field format issue');
+    return false;
+  }
+}
+
+// Step 3: Test updating only read-write string fields
+async testStringFieldUpdate(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: String field update for task', taskId);
+    
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    const currentTask = await this.getTask(taskId);
+    
+    // Find a safe string field to update
+    const stringFields = ['brief_description', 'job_id'];
+    let testField = null;
+    let testValue = null;
+    
+    for (const fieldName of stringFields) {
+      const currentValue = currentTask.fields?.[fieldName] || currentTask[fieldName];
+      if (currentValue && typeof currentValue === 'string') {
+        testField = fieldName;
+        testValue = currentValue + ' (Test)';
+        break;
+      }
+    }
+    
+    if (!testField) {
+      console.log('⚠️ No safe string field found to test');
+      return false;
+    }
+    
+    console.log(`📝 Testing update of ${testField}: "${testValue}"`);
+    
+    const requestBody = {
+      fields: {
+        [testField]: testValue
+      },
+      options: {
+        editSessionToken: taskMetadata.editSessionToken
+      }
+    };
+    
+    console.log('📤 String field update request:', JSON.stringify(requestBody, null, 2));
+    
+    const result = await this.request('PATCH', `task/${taskId}`, {
+      body: JSON.stringify(requestBody),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    console.log('✅ String field update successful:', result);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ String field update failed:', error);
+    return false;
+  }
+}
+
+// Step 4: Test using the exact same pattern as ApiClient.tsx
+async testExactApiClientPattern(taskId: number): Promise<boolean> {
+  try {
+    console.log('🧪 TESTING: Exact ApiClient.tsx pattern for task', taskId);
+    
+    // First, create a minimal class that exactly matches ApiClient.tsx
+    const signal = new AbortController().signal;
+    
+    // Use the exact same function signature as the working ApiClient.tsx
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    
+    // Use the exact same pattern from editTaskData in ApiClient.tsx
+    const result = await this.request("PATCH", `task/${taskId}`, {
+      body: JSON.stringify({
+        fields: {
+          brief_description: (taskMetadata.initialState?.brief_description || 'Test') + ' (API Test)'
+        },
+        options: {
+          editSessionToken: taskMetadata.editSessionToken
+        }
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    console.log('✅ Exact ApiClient pattern successful:', result);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Exact ApiClient pattern failed:', error);
+    
+    // If even this fails, the issue might be with permissions or the task state
+    console.log('🔍 Potential issues:');
+    console.log('  - Task might be in a locked/read-only state');
+    console.log('  - User permissions might not allow editing');
+    console.log('  - Task form configuration issue');
+    console.log('  - API endpoint configuration issue');
+    
+    return false;
+  }
+}
+
+// Step 5: Comprehensive diagnostic runner
+async runComprehensiveDiagnostics(quoteId: string): Promise<void> {
+  console.log(`🏥 RUNNING COMPREHENSIVE DIAGNOSTICS for quote ${quoteId}`);
+  
+  const taskId = parseInt(quoteId);
+  if (isNaN(taskId)) {
+    console.error('❌ Invalid task ID');
+    return;
+  }
+  
+  const results = {
+    basicAccess: false,
+    emptyUpdate: false,
+    stringUpdate: false,
+    exactPattern: false
+  };
+  
+  try {
+    // Test 1: Basic access
+    console.log('\n📋 TEST 1: Basic Task Access');
+    results.basicAccess = await this.testBasicTaskAccess(taskId);
+    
+    // Test 2: Empty update
+    console.log('\n📋 TEST 2: Empty Update');
+    results.emptyUpdate = await this.testEmptyUpdate(taskId);
+    
+    // Test 3: String field update
+    console.log('\n📋 TEST 3: String Field Update');
+    results.stringUpdate = await this.testStringFieldUpdate(taskId);
+    
+    // Test 4: Exact ApiClient pattern
+    console.log('\n📋 TEST 4: Exact ApiClient Pattern');
+    results.exactPattern = await this.testExactApiClientPattern(taskId);
+    
+    // Summary
+    console.log('\n📊 DIAGNOSTIC RESULTS:');
+    console.table(results);
+    
+    if (results.basicAccess && !results.emptyUpdate) {
+      console.log('🎯 DIAGNOSIS: API endpoint or request structure issue');
+    } else if (results.emptyUpdate && !results.stringUpdate) {
+      console.log('🎯 DIAGNOSIS: Field format or validation issue');
+    } else if (results.stringUpdate && !results.exactPattern) {
+      console.log('🎯 DIAGNOSIS: Request structure mismatch with ApiClient');
+    } else if (!results.basicAccess) {
+      console.log('🎯 DIAGNOSIS: Fundamental access or permissions issue');
+    }
+    
+  } catch (error) {
+    console.error('❌ Diagnostics failed:', error);
+  }
+}
 // Task field data structure to match actual API response
 export interface HiSAFETaskFields {
   assignee?: HiSAFEAssignee[] | HiSAFEAssignee;
