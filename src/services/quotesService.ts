@@ -195,6 +195,7 @@ class QuotesService {
 
 // SIMPLIFIED: Replace the updateQuoteStatus method in src/services/quotesService.ts
 
+// Simplified and reliable status update method
 async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequest> {
   try {
     const taskId = parseInt(quoteId);
@@ -212,10 +213,10 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
     
     // Status mappings based on your existing data
     const statusMappings = {
-      'pending': { id: 5, name: 'Awaiting Approval', type: 'Open' },
-      'processing': { id: 6, name: 'Work in Progress', type: 'InProgress' },
-      'approved': { id: 3, name: 'Quote Complete', type: 'Open' },
-      'denied': { id: 7, name: 'Quote Denied', type: 'Closed' }
+      'pending': { id: 5, name: 'Awaiting Approval', type: 'Open' as const },
+      'processing': { id: 6, name: 'Work in Progress', type: 'InProgress' as const },
+      'approved': { id: 3, name: 'Quote Complete', type: 'Open' as const },
+      'denied': { id: 7, name: 'Quote Denied', type: 'Closed' as const }
     };
     
     const hisafeStatus = statusMappings[status];
@@ -223,15 +224,13 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
       throw new Error(`Unknown status: ${status}`);
     }
 
-    // Update in HiSAFE using the fixed updateTask method
-    // Now that updateTask properly gets editSessionToken, we can send the full status object
-    await hisafeApi.updateTask(taskId, {
-      status: {
-        id: hisafeStatus.id,
-        name: hisafeStatus.name,
-        type: hisafeStatus.type
-      }
-    });
+    // Update in HiSAFE using the proper method that gets editSessionToken
+    await hisafeApi.updateTaskStatus(
+      taskId, 
+      hisafeStatus.id, 
+      hisafeStatus.name, 
+      hisafeStatus.type
+    );
     
     console.log(`✅ Updated task ${taskId} status to ${hisafeStatus.name} (ID: ${hisafeStatus.id})`);
     
@@ -251,6 +250,7 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
 }
   // Add this new method to src/services/quotesService.ts to handle comment appending
 
+// Fixed comment addition method using the new utility
 async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
   try {
     const taskId = parseInt(quoteId);
@@ -260,48 +260,15 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     
     console.log(`💬 Adding comment to quote ${quoteId}...`);
     
-    // Get current quote to read existing comments
+    // Get current quote
     const currentQuote = await this.getQuote(quoteId);
     if (!currentQuote) {
       throw new Error('Quote not found');
     }
 
-    // Get the current task to read the existing Comments field
-    const currentTask = await hisafeApi.getTask(taskId);
-    const existingComments = this.safeString(currentTask.fields?.Comments || '');
-    
-    // Format new comment with timestamp and author
-    const timestamp = new Date().toLocaleString('en-US', {
-      year: 'numeric',
-      month: 'short', 
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
-    });
-    
-    const newCommentEntry = `[${timestamp}] ${author}: ${commentText}`;
-    
-    // Append to existing comments (don't replace)
-    const updatedCommentsText = existingComments 
-      ? `${existingComments}\n\n${newCommentEntry}`
-      : newCommentEntry;
-    
-    console.log(`📝 Appending comment to existing text:`, {
-      existingLength: existingComments.length,
-      newEntry: newCommentEntry,
-      totalLength: updatedCommentsText.length
-    });
-    
-    // Update the Comments field in HiSAFE using the proper API structure
-    try {
-      await hisafeApi.updateTask(taskId, {
-        Comments: updatedCommentsText  // Direct field update
-      });
-      console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
-    } catch (updateError) {
-      console.error(`⚠️ Failed to update Comments field in HiSAFE:`, updateError);
-      throw new Error(`Failed to save comment to HiSAFE: ${updateError.message}`);
-    }
+    // Use the new appendToComments utility method
+    await hisafeApi.appendToComments(taskId, commentText, author);
+    console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
     
     // Update local quote object with new comment
     const newComment: Comment = {
@@ -326,7 +293,65 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     throw error;
   }
 }
+// NEW: General method to update any field
+async updateQuoteField(quoteId: string, fieldName: string, fieldValue: any): Promise<QuoteRequest> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🔄 Updating quote ${quoteId} field ${fieldName} to:`, fieldValue);
+    
+    // Get current quote
+    const currentQuote = await this.getQuote(quoteId);
+    if (!currentQuote) {
+      throw new Error('Quote not found');
+    }
+    
+    // Update the field in HiSAFE
+    await hisafeApi.updateTaskField(taskId, fieldName, fieldValue);
+    console.log(`✅ Updated field ${fieldName} for task ${taskId}`);
+    
+    // Return updated quote (you may need to reload to get the updated values)
+    const refreshedQuote = await this.getQuote(quoteId);
+    return refreshedQuote || currentQuote;
+    
+  } catch (error) {
+    console.error(`Failed to update field ${fieldName} for quote ${quoteId}:`, error);
+    throw error;
+  }
+}
 
+// NEW: Update multiple fields at once
+async updateQuoteFields(quoteId: string, fields: Record<string, any>): Promise<QuoteRequest> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🔄 Updating quote ${quoteId} with multiple fields:`, fields);
+    
+    // Get current quote
+    const currentQuote = await this.getQuote(quoteId);
+    if (!currentQuote) {
+      throw new Error('Quote not found');
+    }
+    
+    // Update all fields in HiSAFE at once
+    await hisafeApi.updateTask(taskId, fields);
+    console.log(`✅ Updated multiple fields for task ${taskId}`);
+    
+    // Return refreshed quote to get the updated values
+    const refreshedQuote = await this.getQuote(quoteId);
+    return refreshedQuote || currentQuote;
+    
+  } catch (error) {
+    console.error(`Failed to update fields for quote ${quoteId}:`, error);
+    throw error;
+  }
+}
 // Helper method to safely convert values to strings (add this to quotesService.ts)
 private safeString(value: any): string {
   if (value === null || value === undefined) return '';
