@@ -895,6 +895,164 @@ private safeString(value: any): string {
       return false;
     }
   }
+// Add these test methods to your HiSAFEApi class in src/services/hisafeApi.ts
+// (Add them right before the closing bracket of the class)
+
+  // =============================================================================
+  // DIAGNOSTIC TEST METHODS - Add these to debug the 500 errors
+  // =============================================================================
+
+  // Step 1: Verify the basic API connection and task access
+  async testBasicTaskAccess(taskId: number): Promise<boolean> {
+    try {
+      console.log('🧪 TESTING: Basic task access for task', taskId);
+      
+      // Test GET request first
+      const taskData = await this.getTask(taskId);
+      console.log('✅ GET task successful:', !!taskData);
+      
+      // Test GET metadata request
+      const taskMetadata = await this.request("GET", `task/${taskId}`);
+      console.log('✅ GET task metadata successful:', !!taskMetadata);
+      console.log('📝 EditSessionToken obtained:', !!taskMetadata.editSessionToken);
+      
+      return true;
+    } catch (error) {
+      console.error('❌ Basic task access failed:', error);
+      return false;
+    }
+  }
+
+  // Step 2: Test a completely empty update (should return "no changes")
+  async testEmptyUpdate(taskId: number): Promise<boolean> {
+    try {
+      console.log('🧪 TESTING: Empty update for task', taskId);
+      
+      const taskMetadata = await this.request("GET", `task/${taskId}`);
+      
+      // Send completely empty fields - this should not cause a 500 error
+      const requestBody = {
+        fields: {}, // Empty - should be safe
+        options: {
+          editSessionToken: taskMetadata.editSessionToken
+        }
+      };
+      
+      console.log('📤 Empty update request:', JSON.stringify(requestBody, null, 2));
+      
+      const result = await this.request('PATCH', `task/${taskId}`, {
+        body: JSON.stringify(requestBody),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      
+      console.log('✅ Empty update successful:', result);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Empty update failed:', error);
+      console.log('🔍 This suggests a fundamental API issue, not a field format issue');
+      return false;
+    }
+  }
+
+  // Step 3: Test updating only read-write string fields
+  async testStringFieldUpdate(taskId: number): Promise<boolean> {
+    try {
+      console.log('🧪 TESTING: String field update for task', taskId);
+      
+      const taskMetadata = await this.request("GET", `task/${taskId}`);
+      const currentTask = await this.getTask(taskId);
+      
+      // Find a safe string field to update
+      const stringFields = ['brief_description', 'job_id'];
+      let testField = null;
+      let testValue = null;
+      
+      for (const fieldName of stringFields) {
+        const currentValue = currentTask.fields?.[fieldName] || currentTask[fieldName];
+        if (currentValue && typeof currentValue === 'string') {
+          testField = fieldName;
+          testValue = currentValue + ' (Test)';
+          break;
+        }
+      }
+      
+      if (!testField) {
+        console.log('⚠️ No safe string field found to test');
+        return false;
+      }
+      
+      console.log(`📝 Testing update of ${testField}: "${testValue}"`);
+      
+      const requestBody = {
+        fields: {
+          [testField]: testValue
+        },
+        options: {
+          editSessionToken: taskMetadata.editSessionToken
+        }
+      };
+      
+      console.log('📤 String field update request:', JSON.stringify(requestBody, null, 2));
+      
+      const result = await this.request('PATCH', `task/${taskId}`, {
+        body: JSON.stringify(requestBody),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      
+      console.log('✅ String field update successful:', result);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ String field update failed:', error);
+      return false;
+    }
+  }
+
+  // Step 4: Test using the exact same pattern as ApiClient.tsx
+  async testExactApiClientPattern(taskId: number): Promise<boolean> {
+    try {
+      console.log('🧪 TESTING: Exact ApiClient.tsx pattern for task', taskId);
+      
+      // Use the exact same pattern from editTaskData in ApiClient.tsx
+      const taskMetadata = await this.request("GET", `task/${taskId}`);
+      
+      const result = await this.request("PATCH", `task/${taskId}`, {
+        body: JSON.stringify({
+          fields: {
+            brief_description: (taskMetadata.initialState?.brief_description || 'Test') + ' (API Test)'
+          },
+          options: {
+            editSessionToken: taskMetadata.editSessionToken
+          }
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+      
+      console.log('✅ Exact ApiClient pattern successful:', result);
+      return true;
+      
+    } catch (error) {
+      console.error('❌ Exact ApiClient pattern failed:', error);
+      
+      // If even this fails, the issue might be with permissions or the task state
+      console.log('🔍 Potential issues:');
+      console.log('  - Task might be in a locked/read-only state');
+      console.log('  - User permissions might not allow editing');
+      console.log('  - Task form configuration issue');
+      console.log('  - API endpoint configuration issue');
+      
+      return false;
+    }
+  }
+
+} // End of HiSAFEApi class
 }
 
 // Create and export service instance
