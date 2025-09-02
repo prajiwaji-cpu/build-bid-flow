@@ -314,12 +314,15 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
 // Enhanced debug version in hisafeApi.ts
 // FIXED: Replace the updateTask method in src/services/hisafeApi.ts with this corrected version
 
+// Add these methods to src/services/hisafeApi.ts
+
+// FIXED: Complete updateTask method that gets editSessionToken first
 async updateTask(taskId: number, fields: Record<string, any>) {
   try {
     console.log('🔍 Starting task update for:', taskId);
     console.log('📝 Fields to update:', JSON.stringify(fields, null, 2));
 
-    // STEP 1: Get task metadata to obtain editSessionToken (following ApiClient.tsx pattern)
+    // STEP 1: Get task metadata to obtain editSessionToken (critical for updates!)
     const taskMetadata = await this.request("GET", `task/${taskId}`);
     
     if (!taskMetadata || !taskMetadata.editSessionToken) {
@@ -328,11 +331,11 @@ async updateTask(taskId: number, fields: Record<string, any>) {
 
     console.log('🔑 Got editSessionToken:', taskMetadata.editSessionToken);
 
-    // STEP 2: Build request body exactly like ApiClient.tsx
+    // STEP 2: Build request body exactly like working ApiClient.tsx pattern
     const requestBody = {
       fields,
       options: {
-        editSessionToken: taskMetadata.editSessionToken  // ← This was missing!
+        editSessionToken: taskMetadata.editSessionToken  // ← This was the missing piece!
       }
     };
     
@@ -355,6 +358,74 @@ async updateTask(taskId: number, fields: Record<string, any>) {
     console.error('❌ Task update failed:', error);
     throw error;
   }
+}
+
+// NEW: Utility method to update specific fields safely
+async updateTaskField(taskId: number, fieldName: string, fieldValue: any) {
+  const updateFields: Record<string, any> = {};
+  updateFields[fieldName] = fieldValue;
+  return await this.updateTask(taskId, updateFields);
+}
+
+// NEW: Utility method to update status specifically
+async updateTaskStatus(taskId: number, statusId: number, statusName: string, statusType: "Open" | "InProgress" | "Closed") {
+  return await this.updateTask(taskId, {
+    status: {
+      id: statusId,
+      name: statusName,
+      type: statusType
+    }
+  });
+}
+
+// NEW: Utility method to append to Comments field safely  
+async appendToComments(taskId: number, newComment: string, author: string = 'User') {
+  try {
+    // Get current task to read existing comments
+    const currentTask = await this.getTask(taskId);
+    const existingComments = this.safeString(currentTask.fields?.Comments || '');
+    
+    // Format new comment with timestamp
+    const timestamp = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const newCommentEntry = `[${timestamp}] ${author}: ${newComment}`;
+    
+    // Append to existing comments
+    const updatedCommentsText = existingComments 
+      ? `${existingComments}\n\n${newCommentEntry}`
+      : newCommentEntry;
+    
+    // Update the Comments field
+    return await this.updateTaskField(taskId, 'Comments', updatedCommentsText);
+  } catch (error) {
+    console.error('Failed to append comment:', error);
+    throw error;
+  }
+}
+
+// Helper method for safe string conversion
+private safeString(value: any): string {
+  if (value === null || value === undefined) return '';
+  if (typeof value === 'number') return String(value);
+  if (typeof value === 'boolean') return String(value);
+  if (typeof value === 'object') {
+    if (value.text) return String(value.text);
+    if (value.name) return String(value.name);
+    if (value.value) return String(value.value);
+    try {
+      const stringified = JSON.stringify(value);
+      return stringified === '{}' ? '' : stringified;
+    } catch {
+      return String(value);
+    }
+  }
+  return String(value);
 }
   // Get all tasks using the working portal approach
   async getAllTasks(): Promise<HiSAFETask[]> {
