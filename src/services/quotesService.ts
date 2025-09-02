@@ -251,9 +251,10 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
         
         const statusId = statusIdMappings[status];
         if (statusId) {
-          await hisafeApi.updateTask(taskId, {
-            status: { id: statusId }
-          });
+          // Try in updateQuoteStatus - simple number approach
+await hisafeApi.updateTask(taskId, {
+  status: 3  // Just send the ID as a number
+});
           console.log(`✅ Updated task ${taskId} status to ID ${statusId} with simple format`);
         }
       } catch (alternativeError) {
