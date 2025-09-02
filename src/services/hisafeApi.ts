@@ -312,24 +312,49 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
   // Update a task - FIXED: Match original editTaskData pattern
  // Temporary debug version in hisafeApi.ts
 // Enhanced debug version in hisafeApi.ts
+// FIXED: Replace the updateTask method in src/services/hisafeApi.ts with this corrected version
+
 async updateTask(taskId: number, fields: Record<string, any>) {
-  const requestBody = {
-    fields,
-    options: {}
-  };
-  
-  console.log('🔍 PATCH Request Details:');
-  console.log('  URL:', `task/${taskId}`);
-  console.log('  TaskId:', taskId);
-  console.log('  Fields Object:', JSON.stringify(fields, null, 2));
-  console.log('  Full Request Body:', JSON.stringify(requestBody, null, 2));
-  
-  return this.request('PATCH', `task/${taskId}`, {
-    body: JSON.stringify(requestBody),
-    headers: {
-      "Content-Type": "application/json"
+  try {
+    console.log('🔍 Starting task update for:', taskId);
+    console.log('📝 Fields to update:', JSON.stringify(fields, null, 2));
+
+    // STEP 1: Get task metadata to obtain editSessionToken (following ApiClient.tsx pattern)
+    const taskMetadata = await this.request("GET", `task/${taskId}`);
+    
+    if (!taskMetadata || !taskMetadata.editSessionToken) {
+      throw new Error('Could not get edit session token for task');
     }
-  });
+
+    console.log('🔑 Got editSessionToken:', taskMetadata.editSessionToken);
+
+    // STEP 2: Build request body exactly like ApiClient.tsx
+    const requestBody = {
+      fields,
+      options: {
+        editSessionToken: taskMetadata.editSessionToken  // ← This was missing!
+      }
+    };
+    
+    console.log('📤 PATCH Request Details:');
+    console.log('  URL:', `task/${taskId}`);
+    console.log('  Full Request Body:', JSON.stringify(requestBody, null, 2));
+    
+    // STEP 3: Make the PATCH request with proper structure
+    const result = await this.request('PATCH', `task/${taskId}`, {
+      body: JSON.stringify(requestBody),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+
+    console.log('✅ Task update successful:', result);
+    return result;
+
+  } catch (error) {
+    console.error('❌ Task update failed:', error);
+    throw error;
+  }
 }
   // Get all tasks using the working portal approach
   async getAllTasks(): Promise<HiSAFETask[]> {
