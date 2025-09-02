@@ -111,7 +111,7 @@ class HiSAFEApiService {
       clientId: import.meta.env.VITE_HISAFE_CLIENT_ID || '',
       portalSlug: import.meta.env.VITE_HISAFE_PORTAL_SLUG || 'quotes',
       featureType: 'PORTAL',
-      apiVersion: '10.1.0'
+      apiVersion: '9.0.0'
     };
 
     // FIXED: Create alwaysAddParams exactly like original ApiClient
