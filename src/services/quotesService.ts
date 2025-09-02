@@ -107,7 +107,167 @@ class QuotesService {
       throw new Error(`Failed to load quotes: ${error.message}`);
     }
   }
+// Add these diagnostic methods to src/services/quotesService.ts
 
+// STEP 1: First test with a field that should definitely work
+async testSafeFieldUpdate(quoteId: string): Promise<boolean> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🧪 TESTING: Safest possible field update for task ${taskId}`);
+    
+    // Test with brief_description - this is always a simple string
+    const currentTask = await hisafeApi.getTask(taskId);
+    const currentDesc = currentTask.brief_description || currentTask.fields?.brief_description || 'Test';
+    const testDesc = `${currentDesc} (Test ${Date.now()})`;
+    
+    console.log('Current description:', currentDesc);
+    console.log('Test description:', testDesc);
+    
+    // Try the simplest possible update
+    await hisafeApi.updateTask(taskId, {
+      brief_description: testDesc
+    });
+    
+    console.log('✅ Safe field update successful!');
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Even safe field update failed:', error);
+    return false;
+  }
+}
+
+// STEP 2: Test with read-only inspection first
+async inspectFieldStructures(quoteId: string): Promise<void> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🔍 INSPECTING: Field structures for task ${taskId}`);
+    
+    // Get task metadata (what we use for updates)
+    const taskMetadata = await hisafeApi.request("GET", `task/${taskId}`);
+    console.log('📋 Task Metadata (for editing):', {
+      hasEditSessionToken: !!taskMetadata.editSessionToken,
+      editSessionToken: taskMetadata.editSessionToken?.substring(0, 10) + '...',
+      initialState: taskMetadata.initialState
+    });
+    
+    // Get raw task data (what we see in lists)
+    const taskData = await hisafeApi.getTask(taskId);
+    console.log('📊 Raw Task Data fields:', taskData.fields);
+    
+    // Focus on problematic fields
+    console.group('🎯 PROBLEMATIC FIELD ANALYSIS:');
+    
+    // Comments field analysis
+    if (taskData.fields?.Comments) {
+      console.log('Comments field:');
+      console.log('  Type:', typeof taskData.fields.Comments);
+      console.log('  Full structure:', JSON.stringify(taskData.fields.Comments, null, 2));
+      
+      if (taskData.fields.Comments.text !== undefined) {
+        console.log('  ✅ Has .text property:', taskData.fields.Comments.text);
+      }
+      if (taskData.fields.Comments.value !== undefined) {
+        console.log('  ✅ Has .value property:', taskData.fields.Comments.value);
+      }
+    }
+    
+    // Status field analysis  
+    if (taskData.fields?.status) {
+      console.log('Status field:');
+      console.log('  Type:', typeof taskData.fields.status);
+      console.log('  Full structure:', JSON.stringify(taskData.fields.status, null, 2));
+    }
+    
+    console.groupEnd();
+    
+    // Also check what's in the metadata's initialState
+    if (taskMetadata.initialState) {
+      console.group('🔧 METADATA INITIAL STATE:');
+      console.log('Comments in initialState:', taskMetadata.initialState.Comments);
+      console.log('status in initialState:', taskMetadata.initialState.status);
+      console.groupEnd();
+    }
+    
+  } catch (error) {
+    console.error('Inspection failed:', error);
+    throw error;
+  }
+}
+
+// STEP 3: Try minimal update with no field transformation
+async testMinimalUpdate(quoteId: string): Promise<boolean> {
+  try {
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`🧪 TESTING: Minimal update for task ${taskId}`);
+    
+    // Get task metadata for editSessionToken
+    const taskMetadata = await hisafeApi.request("GET", `task/${taskId}`);
+    
+    if (!taskMetadata || !taskMetadata.editSessionToken) {
+      throw new Error('Could not get edit session token');
+    }
+    
+    // Try the absolute minimal update - exactly like ApiClient.tsx
+    const requestBody = {
+      fields: {
+        // Try updating something simple and harmless
+        brief_description: (taskMetadata.initialState?.brief_description || 'Test') + ' (Updated)'
+      },
+      options: {
+        editSessionToken: taskMetadata.editSessionToken
+      }
+    };
+    
+    console.log('📤 Minimal update request:', JSON.stringify(requestBody, null, 2));
+    
+    const result = await hisafeApi.request('PATCH', `task/${taskId}`, {
+      body: JSON.stringify(requestBody),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
+    
+    console.log('✅ Minimal update successful:', result);
+    return true;
+    
+  } catch (error) {
+    console.error('❌ Minimal update failed:', error);
+    return false;
+  }
+}
+
+// STEP 4: Add a test button to your dashboard component
+// Add this to your Dashboard.tsx in the quote actions area:
+/*
+<Button 
+  variant="outline" 
+  size="sm"
+  onClick={() => quotesService.inspectFieldStructures(quote.id)}
+>
+  Debug Fields
+</Button>
+
+<Button 
+  variant="outline" 
+  size="sm"
+  onClick={() => quotesService.testMinimalUpdate(quote.id)}
+>
+  Test Update
+</Button>
+*/
   // Helper methods for fallback quote creation
   private extractFallbackClientName(task: any): string {
     if (task.fields?.owner?.name) return task.fields.owner.name;
