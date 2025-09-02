@@ -334,6 +334,8 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
   // Add this new method to src/services/quotesService.ts to handle comment appending
 
 // Fixed comment addition method using the new utility
+// CORRECTED: Replace the addComment method in src/services/quotesService.ts
+
 async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
   try {
     const taskId = parseInt(quoteId);
@@ -349,8 +351,46 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
       throw new Error('Quote not found');
     }
 
-    // Use the new appendToComments utility method
-    await hisafeApi.appendToComments(taskId, commentText, author);
+    // Get the current task to read the existing Comments field structure
+    const currentTask = await hisafeApi.getTask(taskId);
+    
+    // FIXED: Extract text from Comments object correctly
+    let existingCommentsText = '';
+    if (currentTask.fields?.Comments) {
+      if (typeof currentTask.fields.Comments === 'object' && currentTask.fields.Comments.text) {
+        existingCommentsText = String(currentTask.fields.Comments.text);
+      } else if (typeof currentTask.fields.Comments === 'string') {
+        existingCommentsText = currentTask.fields.Comments;
+      }
+    }
+    
+    // Format new comment with timestamp
+    const timestamp = new Date().toLocaleString('en-US', {
+      year: 'numeric',
+      month: 'short', 
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const newCommentEntry = `[${timestamp}] ${author}: ${commentText}`;
+    
+    // Append to existing comments
+    const updatedCommentsText = existingCommentsText 
+      ? `${existingCommentsText}\n\n${newCommentEntry}`
+      : newCommentEntry;
+    
+    console.log('📝 Comment update details:', {
+      existing: existingCommentsText,
+      new: newCommentEntry,
+      final: updatedCommentsText
+    });
+    
+    // FIXED: Update Comments field using proper object structure
+    await hisafeApi.updateTask(taskId, {
+      Comments: { text: updatedCommentsText }  // ← Object structure with text property
+    });
+    
     console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
     
     // Update local quote object with new comment
@@ -375,6 +415,31 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     console.error(`Failed to add comment to quote ${quoteId}:`, error);
     throw error;
   }
+}
+
+// SIMPLIFIED: Helper method to safely extract text from object fields
+private extractFieldText(fieldValue: any): string {
+  if (!fieldValue) return '';
+  
+  if (typeof fieldValue === 'string') {
+    return fieldValue;
+  }
+  
+  if (typeof fieldValue === 'object') {
+    // Try common text properties
+    if (fieldValue.text) return String(fieldValue.text);
+    if (fieldValue.value) return String(fieldValue.value);
+    if (fieldValue.name) return String(fieldValue.name);
+    
+    // If it's an object but no known text property, stringify it
+    try {
+      return JSON.stringify(fieldValue);
+    } catch {
+      return String(fieldValue);
+    }
+  }
+  
+  return String(fieldValue);
 }
 // NEW: General method to update any field
 async updateQuoteField(quoteId: string, fieldName: string, fieldValue: any): Promise<QuoteRequest> {
