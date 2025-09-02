@@ -314,17 +314,27 @@ class HiSAFEApiService {
   }
 
   // Update a task - FIXED: Match original editTaskData pattern
-  async updateTask(taskId: number, fields: Record<string, any>) {
-    return this.request('PATCH', `task/${taskId}`, {
-      body: JSON.stringify({
-        fields,
-        options: {}
-      }),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    });
-  }
+ // Temporary debug version in hisafeApi.ts
+async updateTask(taskId: number, fields: Record<string, any>) {
+  const requestBody = {
+    fields,
+    options: {}
+  };
+  
+  console.log('🔍 PATCH Request Details:', {
+    url: `task/${taskId}`,
+    body: requestBody,
+    taskId,
+    fields
+  });
+  
+  return this.request('PATCH', `task/${taskId}`, {
+    body: JSON.stringify(requestBody),
+    headers: {
+      "Content-Type": "application/json"
+    }
+  });
+}
 
   // Get all tasks using the working portal approach
   async getAllTasks(): Promise<HiSAFETask[]> {
