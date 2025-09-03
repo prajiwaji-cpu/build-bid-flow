@@ -309,57 +309,7 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
     });
   }
 
-  // Update a task - FIXED: Match original editTaskData pattern
- // Temporary debug version in hisafeApi.ts
-// Enhanced debug version in hisafeApi.ts
-// FIXED: Replace the updateTask method in src/services/hisafeApi.ts with this corrected version
-
-// Add these methods to src/services/hisafeApi.ts
-
-// FIXED: Complete updateTask method that gets editSessionToken first
-async updateTask(taskId: number, fields: Record<string, any>) {
-  try {
-    console.log('🔍 Starting task update for:', taskId);
-    console.log('📝 Fields to update:', JSON.stringify(fields, null, 2));
-
-    // STEP 1: Get task metadata to obtain editSessionToken (critical for updates!)
-    const taskMetadata = await this.request("GET", `task/${taskId}`);
-    
-    if (!taskMetadata || !taskMetadata.editSessionToken) {
-      throw new Error('Could not get edit session token for task');
-    }
-
-    console.log('🔑 Got editSessionToken:', taskMetadata.editSessionToken);
-
-    // STEP 2: Build request body exactly like working ApiClient.tsx pattern
-    const requestBody = {
-      fields,
-      options: {
-        editSessionToken: taskMetadata.editSessionToken  // ← This was the missing piece!
-      }
-    };
-    
-    console.log('📤 PATCH Request Details:');
-    console.log('  URL:', `task/${taskId}`);
-    console.log('  Full Request Body:', JSON.stringify(requestBody, null, 2));
-    
-    // STEP 3: Make the PATCH request with proper structure
-    const result = await this.request('PATCH', `task/${taskId}`, {
-      body: JSON.stringify(requestBody),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    });
-
-    console.log('✅ Task update successful:', result);
-    return result;
-
-  } catch (error) {
-    console.error('❌ Task update failed:', error);
-    throw error;
-  }
-}
-
+  
 // NEW: Utility method to update specific fields safely
 async updateTaskField(taskId: number, fieldName: string, fieldValue: any) {
   const updateFields: Record<string, any> = {};
@@ -481,9 +431,16 @@ async updateTask(taskId: number, fields: Record<string, any>) {
         } else {
           transformedFields[fieldName] = fieldValue;
         }
-      } else if (fieldName === 'status') {
-        // Status is already properly formatted as object with id, name, type
-        transformedFields[fieldName] = fieldValue;
+    } else if (fieldName === 'status') {
+  // FIXED: Status field must be just the ID or name, not the full object
+  if (typeof fieldValue === 'object' && fieldValue !== null) {
+    // If we received an object, extract just the ID
+    transformedFields[fieldName] = fieldValue.id || fieldValue.name;
+  } else {
+    // If it's already a simple value, use it as-is
+    transformedFields[fieldName] = fieldValue;
+  }
+  console.log('🔧 Status field transformed to:', transformedFields[fieldName]);
       } else if (fieldName === 'extended_description') {
         // Extended description might also be an object
         if (typeof fieldValue === 'string') {
