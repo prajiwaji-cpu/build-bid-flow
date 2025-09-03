@@ -23,6 +23,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useForm } from 'react-hook-form';
 import { QuoteRequest } from '@/types/quote';
 import { MessageSquare, User, Clock } from 'lucide-react';
+import { quotesService } from '@/services/quotesService';
 
 interface CommentDialogProps {
   open: boolean;
