@@ -646,54 +646,55 @@ private safeString(value: any): string {
  // TEMPORARY: Simplified getAllTasks to bypass portal metadata issues
 // RESTORED: Use the exact working pattern from ApiClient.tsx
 // EMERGENCY RESTORE: Skip all metadata calls and use direct approach
+// RESTORED: The actual working version from your upload
 async getAllTasks(): Promise<HiSAFETask[]> {
   try {
-    console.log('🔄 Emergency restore: Loading tasks without metadata...');
+    console.log('🔄 Loading all tasks from HiSAFE using working approach...');
     
-    // Try the series IDs that were working before (from your logs we saw 1,2,3)
-    const workingSeriesIds = [1, 2, 3];
+    // The working version doesn't use portal metadata at all!
+    // It goes directly to portal/load with predefined series IDs
+    const fallbackSeriesIds = [1, 2, 3];
     
-    console.log(`🔄 Trying portal load with series: ${workingSeriesIds.join(', ')}`);
+    console.log('🔄 Using direct portal load approach...');
     
-    // Make the request in the exact same way as before
-    const qs = workingSeriesIds.map(s => "seriesId=" + s).join("&");
-    const url = "portal/load?" + qs;
+    // Make the request exactly like the working version
+    const portalData = await this.getPortalData(fallbackSeriesIds);
+    console.log('✅ Portal data loaded successfully:', portalData);
     
-    console.log(`🔄 Making request to: ${url}`);
-    
-    const portalData = await this.request<Record<string, any>>("GET", url);
-    
-    console.log('✅ Raw portal response:', portalData);
-    
-    // Process the data
+    // Extract tasks from response (same logic as working version)
     const allTasks: HiSAFETask[] = [];
     
     Object.entries(portalData).forEach(([seriesId, componentData]) => {
+      console.log(`🔍 Processing series ${seriesId}:`, componentData);
+      
       if (componentData && componentData.type === 'list' && componentData.listResult) {
-        console.log(`📊 Series ${seriesId}: Found ${componentData.listResult.length} tasks`);
+        console.log(`📊 Found ${componentData.listResult.length} tasks in series ${seriesId}`);
         
-        componentData.listResult.forEach((item: any) => {
-          allTasks.push({
-            task_id: item.task_id,
-            fields: item.fields,
-            status: item.fields?.status,
-            created_date: item.fields?.created_date,
-            updated_date: item.fields?.updated_date,
-            due_date: item.fields?.due_date,
-            brief_description: item.fields?.brief_description,
-            job_id: item.fields?.job_id,
-            owner: item.fields?.owner,
-            assignee: item.fields?.assignee
-          } as HiSAFETask);
-        });
+        const tasks = componentData.listResult.map(item => ({
+          task_id: item.task_id,
+          fields: item.fields,
+          status: item.fields.status,
+          created_date: item.fields.created_date,
+          updated_date: item.fields.updated_date,
+          due_date: item.fields.due_date,
+          brief_description: item.fields.brief_description,
+          job_id: item.fields.job_id,
+          owner: item.fields.owner,
+          assignee: item.fields.assignee
+        } as HiSAFETask));
+        
+        allTasks.push(...tasks);
       }
     });
     
-    console.log(`✅ Successfully loaded ${allTasks.length} tasks`);
+    console.log(`✅ Total tasks loaded: ${allTasks.length}`);
     return allTasks;
     
   } catch (error) {
-    console.error('❌ Emergency restore failed:', error);
+    console.error('❌ Failed to load tasks using working approach:', error);
+    
+    // Return empty array to prevent crash
+    console.warn('⚠️ Returning empty task list to prevent crash');
     return [];
   }
 }
