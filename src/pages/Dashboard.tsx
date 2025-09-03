@@ -1,4 +1,6 @@
-// src/pages/Dashboard.tsx - Working version using direct task access
+// CLEANED VERSION: Replace your Dashboard.tsx with this version
+// Removed: "Discover More" button, "Refresh" button, Success banner, handleDiscoverMoreTasks function
+
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -14,8 +16,7 @@ import {
   Clock, 
   CheckCircle, 
   AlertCircle, 
-  DollarSign,
-  Search
+  DollarSign
 } from 'lucide-react';
 
 export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor' | 'customer' }) {
@@ -43,15 +44,15 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
       
       toast({
         title: "Data Loaded Successfully",
-        description: `Found ${allQuotes.length} quotes using direct task access`,
+        description: `Found ${allQuotes.length} quotes`,
       });
 
-      console.log(`🎉 Successfully loaded ${allQuotes.length} quotes`);
+      console.log(`Successfully loaded ${allQuotes.length} quotes`);
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to load quotes';
       setError(errorMessage);
-      console.error('💥 Error loading quotes:', err);
+      console.error('Error loading quotes:', err);
       
       toast({
         title: "Error Loading Data",
@@ -66,7 +67,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
 
   const handleStatusChange = async (id: string, status: QuoteStatus) => {
     try {
-      console.log(`🔄 Updating task ${id} status to ${status}`);
+      console.log(`Updating task ${id} status to ${status}`);
       const updatedQuote = await quotesService.updateQuoteStatus(id, status);
       
       setQuotes(prev => prev.map(quote => 
@@ -80,7 +81,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to update status';
-      console.error('💥 Error updating status:', err);
+      console.error('Error updating status:', err);
       
       toast({
         title: "Update Failed",
@@ -107,7 +108,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   
   const handleSubmitComment = async (quoteId: string, commentText: string, author: string) => {
     try {
-      console.log(`💬 Adding comment to quote ${quoteId}...`);
+      console.log(`Adding comment to quote ${quoteId}...`);
       
       const updatedQuote = await quotesService.addComment(quoteId, commentText, author);
       
@@ -126,7 +127,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
       
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
-      console.error('💥 Error adding comment:', err);
+      console.error('Error adding comment:', err);
       
       toast({
         title: "Comment Failed",
@@ -134,31 +135,6 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
         variant: "destructive"
       });
       throw err;
-    }
-  };
-
-  const handleDiscoverMoreTasks = async () => {
-    try {
-      setLoading(true);
-      console.log('🔍 Discovering additional tasks...');
-      
-      // Get more quotes by expanding the search range
-      const moreQuotes = await quotesService.getAllQuotes();
-      setQuotes(moreQuotes);
-      
-      toast({
-        title: "Task Discovery Complete",
-        description: `Found ${moreQuotes.length} total quotes`,
-      });
-      
-    } catch (err) {
-      toast({
-        title: "Discovery Failed",
-        description: err instanceof Error ? err.message : 'Failed to discover tasks',
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -195,11 +171,8 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
           <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-4 text-primary" />
           <h2 className="text-xl font-semibold mb-2">Loading Quotes</h2>
           <p className="text-muted-foreground">
-            Using direct task access to load your HiSAFE data...
+            Loading your HiSAFE data...
           </p>
-          <div className="mt-4 text-sm text-muted-foreground">
-            This may take a moment as we search for all available tasks
-          </div>
         </Card>
       </div>
     );
@@ -236,55 +209,14 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
                 {viewMode === 'contractor' ? 'Construction Dashboard' : 'My Quote Requests'}
               </h1>
               <p className="text-sm text-muted-foreground mt-1">
-                Loaded via direct task access • {quotes.length} quotes found
+                {quotes.length} quotes available
               </p>
-              {error && (
-                <p className="text-sm text-amber-600 mt-1">
-                  Warning: {error} (Showing available data)
-                </p>
-              )}
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={handleDiscoverMoreTasks}
-                disabled={loading}
-              >
-                <Search className="w-4 h-4 mr-2" />
-                Discover More
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={loadQuotesFromHiSAFE}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                Refresh
-              </Button>
             </div>
           </div>
         </div>
       </div>
 
       <div className="container mx-auto px-4 py-8">
-        
-        {/* Success Banner */}
-        {quotes.length > 0 && (
-          <Card className="mb-8 border-green-200 bg-green-50">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-2 text-green-800">
-                <CheckCircle className="w-5 h-5" />
-                <span className="font-medium">Success!</span>
-              </div>
-              <p className="text-green-700 mt-1">
-                Successfully bypassed the portal/load issue using direct task access. 
-                Found {quotes.length} quotes and comment functionality is ready!
-              </p>
-            </CardContent>
-          </Card>
-        )}
 
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
@@ -296,7 +228,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
             <CardContent>
               <div className="text-2xl font-bold">{counts.all}</div>
               <p className="text-xs text-muted-foreground">
-                via direct access
+                active quotes
               </p>
             </CardContent>
           </Card>
@@ -321,7 +253,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
             </CardContent>
           </Card>
           
-           <Card className="shadow-card bg-gradient-card">
+          <Card className="shadow-card bg-gradient-card">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Completed</CardTitle>
               <CheckCircle className="h-4 w-4 text-muted-foreground" />
@@ -404,19 +336,12 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
             <Building2 className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
             <h3 className="text-lg font-semibold mb-2">No Quotes Found</h3>
             <p className="text-muted-foreground mb-4">
-              No tasks found in the expected range. This might be normal if there are no active quotes, 
-              or the tasks might be in a different ID range.
+              No quotes available at the moment.
             </p>
-            <div className="flex gap-2 justify-center">
-              <Button onClick={loadQuotesFromHiSAFE}>
-                <RefreshCw className="w-4 h-4 mr-2" />
-                Try Again
-              </Button>
-              <Button onClick={handleDiscoverMoreTasks} variant="outline">
-                <Search className="w-4 h-4 mr-2" />
-                Expand Search
-              </Button>
-            </div>
+            <Button onClick={loadQuotesFromHiSAFE}>
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Reload
+            </Button>
           </Card>
         )}
       </div>
