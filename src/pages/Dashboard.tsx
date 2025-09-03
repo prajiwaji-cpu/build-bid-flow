@@ -107,47 +107,39 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   };
 
   const handleSubmitComment = async (comment: string) => {
-    if (!selectedQuoteForComment) return;
+  if (!selectedQuoteForComment) return;
 
-    try {
-          // ADD THESE DEBUG LINES:
-    console.log('🐞 DEBUG - handleSubmitComment called with:');
-    console.log('  quoteId:', quoteId);
-    console.log('  commentText:', commentText);
-    console.log('  author:', author);
+  try {
+    console.log(`Adding comment to task ${selectedQuoteForComment.id}:`, comment);
+    await quotesService.addComment(selectedQuoteForComment.id, comment);
     
-    console.log(`Adding comment to quote ${quoteId}...`);
+    // Refresh the specific quote
+    const refreshedQuote = await quotesService.getQuote(selectedQuoteForComment.id);
+    setQuotes(prev => prev.map(quote => 
+      quote.id === selectedQuoteForComment.id ? refreshedQuote : quote
+    ));
+
+    toast({
+      title: "Comment Added",
+      description: "Your comment has been added successfully.",
+    });
+
+    setCommentDialogOpen(false);
+    setSelectedQuoteForComment(null);
+
+  } catch (err) {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
+    console.error('Error adding comment:', err);
     
-    const updatedQuote = await quotesService.addComment(quoteId, commentText, author);
-      console.log(`Adding comment to task ${selectedQuoteForComment.id}:`, comment);
-      await quotesService.addComment(selectedQuoteForComment.id, comment);
-      
-      // Refresh the specific quote
-      const updatedQuote = await quotesService.getQuote(selectedQuoteForComment.id);
-      setQuotes(prev => prev.map(quote => 
-        quote.id === selectedQuoteForComment.id ? updatedQuote : quote
-      ));
+    toast({
+      title: "Comment Failed",
+      description: errorMessage,
+      variant: "destructive"
+    });
+    throw err;
+  }
+};
 
-      toast({
-        title: "Comment Added",
-        description: "Your comment has been added successfully.",
-      });
-
-      setCommentDialogOpen(false);
-      setSelectedQuoteForComment(null);
-
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
-      console.error('Error adding comment:', err);
-      
-      toast({
-        title: "Comment Failed",
-        description: errorMessage,
-        variant: "destructive"
-      });
-      throw err;
-    }
-  };
 
   const getFilteredQuotes = (status?: QuoteStatus) => {
     let filteredQuotes = status ? quotes.filter(quote => quote.status === status) : quotes;
