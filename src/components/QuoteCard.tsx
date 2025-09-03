@@ -174,62 +174,56 @@ export function QuoteCard({ quote, onStatusChange, onAddComment, viewMode = 'cli
             </div>
           )}
 
-          {/* Comments Section - Only show if there are comments */}
-          {hasComments && (
-            <div className="space-y-2">
-              <h5 className="font-medium">Recent Comments:</h5>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {quote.comments.slice(-2).map((comment) => (
-                  <div key={comment.id} className="text-sm p-2 bg-muted/30 rounded">
-                    <div className="flex justify-between items-center mb-1">
-                      <span className="font-medium">{comment.author}</span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDate(comment.timestamp)}
-                      </span>
-                    </div>
-                    <p className="text-muted-foreground">{comment.message}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
+         
         </div>
 
         {/* Actions Section - Only add top margin/border if there are actions to show */}
-        <div className="space-y-2 mt-4">
-          {/* Contractor Actions - Non-processing states */}
-          {viewMode === 'contractor' && onStatusChange && !isProcessing && quote.status === 'pending' && (
-            <div className="flex gap-2 pt-4 border-t">
-              <Button
-                size="sm"
-                className="bg-status-approved hover:bg-status-approved/90 text-white"
-                onClick={() => onStatusChange(quote.id, 'approved')}
-              >
-                Quick Approve
-              </Button>
-            </div>
-          )}
+<div className="space-y-2 mt-4">
+  {/* Contractor Actions - Non-processing states */}
+  {viewMode === 'contractor' && onStatusChange && !isProcessing && quote.status === 'pending' && (
+    <div className="flex gap-2 pt-4 border-t">
+      <Button
+        size="sm"
+        className="bg-status-approved hover:bg-status-approved/90 text-white flex-1"
+        onClick={() => onStatusChange(quote.id, 'approved')}
+      >
+        Quick Approve
+      </Button>
+      {onAddComment && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => onAddComment(quote.id)}
+          className="flex-1"
+        >
+          View/Add Comments
+        </Button>
+      )}
+    </div>
+  )}
 
-          {/* Comment Actions */}
-          {onAddComment && !isProcessing && (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => onAddComment(quote.id)}
-              className="w-full"
-            >
-              Add Comment
-            </Button>
-          )}
+  {/* Comment Actions - When no Quick Approve button */}
+  {onAddComment && !isProcessing && !(viewMode === 'contractor' && onStatusChange && quote.status === 'pending') && (
+    <div className="pt-4 border-t">
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => onAddComment(quote.id)}
+        className="w-full"
+      >
+        View/Add Comments
+      </Button>
+    </div>
+  )}
 
-          {onAddComment && isProcessing && (
-            <div className="text-center py-2">
-              <p className="text-sm text-muted-foreground">
-                Comments will be available once processing is complete
-              </p>
-            </div>
-          )}
-        </div>
+  {onAddComment && isProcessing && (
+    <div className="text-center py-2">
+      <p className="text-sm text-muted-foreground">
+        Comments will be available once processing is complete
+      </p>
+    </div>
+  )}
+</div>
       </CardContent>
     </Card>
   );
