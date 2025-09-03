@@ -392,11 +392,14 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
       Comments: { text: updatedCommentsText }
     });
     // Update using exact object structure from Network tab: Comments: { text: "..." }
-    await hisafeApi.updateTask(taskId, {
-      Comments: {
-        text: updatedCommentsText
-      }
-    });
+   // In your addComment method, when calling the API, make sure you're passing the comment in the right format
+await hisafeApi.updateTask(taskId, {
+  Comments: {
+    value: newCommentEntry,
+    format: "text",
+    operation: "append"  // This will add to existing comments
+  }
+});
     
     console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
     
