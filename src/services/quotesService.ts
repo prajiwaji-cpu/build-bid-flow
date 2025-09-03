@@ -345,11 +345,16 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
 
 async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
   try {
-     
+    // DEBUG LINES with unique variable names:
+    console.log('🐞 DEBUG - addComment called with parameters:');
+    console.log('  quoteId:', quoteId);
+    console.log('  commentText:', commentText);
+    console.log('  author:', author);
+    console.log('  commentText type:', typeof commentText);
+    console.log('  commentText length:', commentText?.length);
     
-    console.log(`💬 Adding comment to quote ${quoteId}...`);
-    const taskId = parseInt(quoteId);
-    if (isNaN(taskId)) {
+    const commentTaskId = parseInt(quoteId);
+    if (isNaN(commentTaskId)) {
       throw new Error('Invalid quote ID');
     }
     
@@ -362,7 +367,7 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     }
 
     // Get current task to read existing Comments field
-    const currentTask = await hisafeApi.getTask(taskId);
+    const currentTask = await hisafeApi.getTask(commentTaskId);
     
     // Extract existing comments text from the exact structure shown in Network tab
     let existingCommentsText = '';
@@ -372,7 +377,7 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     
     console.log('📝 Current comments text:', existingCommentsText);
     
-    // Format new comment with timestamp (matching the format from your Network tab)
+    // Format new comment with timestamp
     const timestamp = new Date().toLocaleString('en-US', {
       year: 'numeric',
       month: '2-digit',
@@ -386,50 +391,28 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     
     const newCommentEntry = `[following added by ${author} on ${timestamp}]\r\n${commentText}`;
     
-    // Combine with existing comments (preserve the \r\n format from Network tab)
-    const updatedCommentsText = existingCommentsText 
-      ? `${existingCommentsText}\r\n\r\n${newCommentEntry}`
-      : newCommentEntry;
+    console.log('📝 NEW COMMENT ENTRY BEING SENT:', newCommentEntry);
     
-    console.log('📤 Sending comment update with structure:', {
-      Comments: { text: updatedCommentsText }
+    // Update the Comments field using the new rich text format
+    await hisafeApi.updateTask(commentTaskId, {
+      Comments: {
+        value: newCommentEntry,
+        format: "text",
+        operation: "append"
+      }
     });
-    // Update using exact object structure from Network tab: Comments: { text: "..." }
-   // In your addComment method, when calling the API, make sure you're passing the comment in the right format
-await hisafeApi.updateTask(taskId, {
-  Comments: {
-    value: newCommentEntry,
-    format: "text",
-    operation: "append"  // This will add to existing comments
-  }
-});
     
-    console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
+    console.log('✅ Comment added successfully');
     
-    // Update local quote object with new comment
-    const newComment: Comment = {
-      id: Math.random().toString(36),
-      author: author,
-      authorType: 'contractor',
-      message: commentText,
-      timestamp: new Date().toISOString()
-    };
-    
-    const updatedQuote: QuoteRequest = {
-      ...currentQuote,
-      comments: [...currentQuote.comments, newComment],
-      updatedAt: new Date().toISOString()
-    };
-    
-    console.log(`✅ Comment added successfully to quote ${quoteId}`);
-    return updatedQuote;
+    // Return updated quote
+    const updatedQuote = await this.getQuote(quoteId);
+    return updatedQuote || currentQuote;
     
   } catch (error) {
     console.error(`Failed to add comment to quote ${quoteId}:`, error);
     throw error;
   }
-} 
-
+}
 // SIMPLIFIED: Helper method to safely extract text from object fields
 private extractFieldText(fieldValue: any): string {
   if (!fieldValue) return '';
