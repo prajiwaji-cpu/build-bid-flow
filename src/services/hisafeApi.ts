@@ -327,7 +327,18 @@ async updateTaskStatus(taskId: number, statusId: number, statusName: string, sta
     }
   });
 }
-
+// Add this method to the HiSAFEApiService class in src/services/hisafeApi.ts
+async getCurrentUser(): Promise<{ name: string | null }> {
+  try {
+    console.log('🔄 Getting current user info...');
+    const userInfo = await this.request<{ name: string | null }>("GET", "self");
+    console.log('✅ Current user info:', userInfo);
+    return userInfo;
+  } catch (error) {
+    console.error('❌ Failed to get user info:', error);
+    return { name: null };
+  }
+}
 // NEW: Utility method to append to Comments field safely  
 async appendToComments(taskId: number, newComment: string, author: string = 'User') {
   try {
