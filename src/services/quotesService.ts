@@ -345,6 +345,20 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
 
 async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
   try {
+      // ADD THESE DEBUG LINES AT THE VERY START:
+    console.log('🐞 DEBUG - addComment called with parameters:');
+    console.log('  quoteId:', quoteId);
+    console.log('  commentText:', commentText);
+    console.log('  author:', author);
+    console.log('  commentText type:', typeof commentText);
+    console.log('  commentText length:', commentText?.length);
+    
+    const taskId = parseInt(quoteId);
+    if (isNaN(taskId)) {
+      throw new Error('Invalid quote ID');
+    }
+    
+    console.log(`💬 Adding comment to quote ${quoteId}...`);
     const taskId = parseInt(quoteId);
     if (isNaN(taskId)) {
       throw new Error('Invalid quote ID');
