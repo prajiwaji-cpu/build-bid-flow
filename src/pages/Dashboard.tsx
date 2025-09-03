@@ -1,5 +1,4 @@
-// CLEANED VERSION: Replace your Dashboard.tsx with this version
-// Removed: "Discover More" button, "Refresh" button, Success banner, handleDiscoverMoreTasks function
+// UPDATED VERSION: Dashboard.tsx with "+ New Quote Request" button in the header
 
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,7 +15,8 @@ import {
   Clock, 
   CheckCircle, 
   AlertCircle, 
-  DollarSign
+  DollarSign,
+  Plus
 } from 'lucide-react';
 
 export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor' | 'customer' }) {
@@ -91,40 +91,32 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
     }
   };
 
-  const handleAddComment = async (id: string) => {
-    const quote = quotes.find(q => q.id === id);
-    if (!quote) {
-      toast({
-        title: "Error",
-        description: "Quote not found",
-        variant: "destructive"
-      });
-      return;
-    }
-    
+  const handleAddComment = (quote: QuoteRequest) => {
     setSelectedQuoteForComment(quote);
     setCommentDialogOpen(true);
   };
-  
-  const handleSubmitComment = async (quoteId: string, commentText: string, author: string) => {
+
+  const handleSubmitComment = async (comment: string) => {
+    if (!selectedQuoteForComment) return;
+
     try {
-      console.log(`Adding comment to quote ${quoteId}...`);
+      console.log(`Adding comment to task ${selectedQuoteForComment.id}:`, comment);
+      await quotesService.addComment(selectedQuoteForComment.id, comment);
       
-      const updatedQuote = await quotesService.addComment(quoteId, commentText, author);
-      
+      // Refresh the specific quote
+      const updatedQuote = await quotesService.getQuote(selectedQuoteForComment.id);
       setQuotes(prev => prev.map(quote => 
-        quote.id === quoteId ? updatedQuote : quote
+        quote.id === selectedQuoteForComment.id ? updatedQuote : quote
       ));
-      
-      if (selectedQuoteForComment && selectedQuoteForComment.id === quoteId) {
-        setSelectedQuoteForComment(updatedQuote);
-      }
-      
+
       toast({
         title: "Comment Added",
-        description: "Your comment has been saved successfully",
+        description: "Your comment has been added successfully.",
       });
-      
+
+      setCommentDialogOpen(false);
+      setSelectedQuoteForComment(null);
+
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to add comment';
       console.error('Error adding comment:', err);
@@ -158,6 +150,11 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   
   const getTotalValue = () => {
     return quotes.reduce((sum, quote) => sum + (quote.estimatedCost || 0), 0);
+  };
+
+  const handleNewQuoteRequest = () => {
+    // Placeholder function - you can insert your form link logic here
+    window.open('https://your-quote-request-form-link-here.com', '_blank');
   };
 
   const counts = getStatusCounts();
@@ -211,6 +208,17 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
               <p className="text-sm text-muted-foreground mt-1">
                 {quotes.length} quotes available
               </p>
+            </div>
+            
+            {/* New Quote Request Button */}
+            <div className="flex items-center gap-2">
+              <Button 
+                onClick={handleNewQuoteRequest}
+                className="bg-primary hover:bg-primary-hover text-primary-foreground font-medium"
+              >
+                <Plus className="w-4 h-4 mr-2" />
+                New Quote Request
+              </Button>
             </div>
           </div>
         </div>
