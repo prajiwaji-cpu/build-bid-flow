@@ -279,6 +279,8 @@ async testSimpleFieldUpdate(quoteId: string): Promise<boolean> {
 // SIMPLIFIED: Replace the updateQuoteStatus method in src/services/quotesService.ts
 
 // Simplified and reliable status update method
+// FIXED: Replace your updateQuoteStatus method in src/services/quotesService.ts
+
 async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequest> {
   try {
     const taskId = parseInt(quoteId);
@@ -294,7 +296,7 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
       throw new Error('Quote not found');
     }
     
-    // Status mappings based on your existing data
+    // Status mappings based on your Network tab data - matching exactly
     const statusMappings = {
       'pending': { id: 5, name: 'Awaiting Approval', type: 'Open' as const },
       'processing': { id: 6, name: 'Work in Progress', type: 'InProgress' as const },
@@ -307,13 +309,16 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
       throw new Error(`Unknown status: ${status}`);
     }
 
-    // Update in HiSAFE using the proper method that gets editSessionToken
-    await hisafeApi.updateTaskStatus(
-      taskId, 
-      hisafeStatus.id, 
-      hisafeStatus.name, 
-      hisafeStatus.type
-    );
+    console.log('📤 Sending status update:', hisafeStatus);
+
+    // Update in HiSAFE using exact object structure from Network tab
+    await hisafeApi.updateTask(taskId, {
+      status: {
+        id: hisafeStatus.id,
+        name: hisafeStatus.name,
+        type: hisafeStatus.type
+      }
+    });
     
     console.log(`✅ Updated task ${taskId} status to ${hisafeStatus.name} (ID: ${hisafeStatus.id})`);
     
@@ -336,6 +341,8 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
 // Fixed comment addition method using the new utility
 // CORRECTED: Replace the addComment method in src/services/quotesService.ts
 
+// FIXED: Replace your addComment method in src/services/quotesService.ts
+
 async addComment(quoteId: string, commentText: string, author: string = 'User'): Promise<QuoteRequest> {
   try {
     const taskId = parseInt(quoteId);
@@ -351,71 +358,40 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
       throw new Error('Quote not found');
     }
 
-    // Get the current task to read the existing Comments field structure
+    // Get current task to read existing Comments field
     const currentTask = await hisafeApi.getTask(taskId);
     
-    // FIXED: Extract text from Comments object correctly
+    // Extract existing comments text from the exact structure shown in Network tab
     let existingCommentsText = '';
-    if (currentTask.fields?.Comments) {
-      if (typeof currentTask.fields.Comments === 'object' && currentTask.fields.Comments.text) {
-        existingCommentsText = String(currentTask.fields.Comments.text);
-      } else if (typeof currentTask.fields.Comments === 'string') {
-        existingCommentsText = currentTask.fields.Comments;
-      }
+    if (currentTask.fields?.Comments && typeof currentTask.fields.Comments === 'object' && currentTask.fields.Comments.text) {
+      existingCommentsText = String(currentTask.fields.Comments.text);
     }
     
-    // Format new comment with timestamp
+    console.log('📝 Current comments text:', existingCommentsText);
+    
+    // Format new comment with timestamp (matching the format from your Network tab)
     const timestamp = new Date().toLocaleString('en-US', {
       year: 'numeric',
-      month: 'short', 
-      day: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      second: '2-digit',
+      timeZone: 'America/New_York', // Adjust to your timezone
+      timeZoneName: 'short'
     });
     
-    const newCommentEntry = `[${timestamp}] ${author}: ${commentText}`;
+    const newCommentEntry = `[following added by ${author} on ${timestamp}]\r\n${commentText}`;
     
-    // Append to existing comments
+    // Combine with existing comments (preserve the \r\n format from Network tab)
     const updatedCommentsText = existingCommentsText 
-      ? `${existingCommentsText}\n\n${newCommentEntry}`
+      ? `${existingCommentsText}\r\n\r\n${newCommentEntry}`
       : newCommentEntry;
     
-    console.log('📝 Comment update details:', {
-      existing: existingCommentsText,
-      new: newCommentEntry,
-      final: updatedCommentsText
+    console.log('📤 Sending comment update with structure:', {
+      Comments: { text: updatedCommentsText }
     });
     
-    // FIXED: Update Comments field using proper object structure
-    await hisafeApi.updateTask(taskId, {
-      Comments: { text: updatedCommentsText }  // ← Object structure with text property
-    });
-    
-    console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
-    
-    // Update local quote object with new comment
-    const newComment: Comment = {
-      id: Math.random().toString(36),
-      author: author,
-      authorType: 'contractor',
-      message: commentText,
-      timestamp: new Date().toISOString()
-    };
-    
-    const updatedQuote: QuoteRequest = {
-      ...currentQuote,
-      comments: [...currentQuote.comments, newComment],
-      updatedAt: new Date().toISOString()
-    };
-    
-    console.log(`✅ Comment added successfully to quote ${quoteId}`);
-    return updatedQuote;
-    
-  } catch (error) {
-    console.error(`Failed to add comment to quote ${quoteId}:`, error);
-    throw error;
-  }
-}
 
 // SIMPLIFIED: Helper method to safely extract text from object fields
 private extractFieldText(fieldValue: any): string {
@@ -470,7 +446,60 @@ async updateQuoteField(quoteId: string, fieldName: string, fieldValue: any): Pro
     throw error;
   }
 }
+// ADD this test method to your QuotesService class for safe testing
 
+async testUpdatesWork(quoteId: string): Promise<{ status: boolean, comments: boolean }> {
+  const results = { status: false, comments: false };
+  
+  try {
+    console.log('🧪 Testing if updates work for quote:', quoteId);
+    
+    // Test 1: Try updating a simple string field first (safest test)
+    const taskId = parseInt(quoteId);
+    const currentTask = await hisafeApi.getTask(taskId);
+    const testDesc = `${currentTask.brief_description || 'Test'} (Test ${Date.now()})`;
+    
+    await hisafeApi.updateTask(taskId, {
+      brief_description: testDesc
+    });
+    console.log('✅ Basic field update works');
+    
+    // Test 2: Try status update
+    try {
+      await hisafeApi.updateTask(taskId, {
+        status: {
+          id: 5,
+          name: 'Awaiting Approval', 
+          type: 'Open'
+        }
+      });
+      console.log('✅ Status update works');
+      results.status = true;
+    } catch (statusError) {
+      console.error('❌ Status update failed:', statusError);
+    }
+    
+    // Test 3: Try comment update
+    try {
+      const testCommentText = `Test comment ${Date.now()}`;
+      await hisafeApi.updateTask(taskId, {
+        Comments: {
+          text: testCommentText
+        }
+      });
+      console.log('✅ Comment update works');
+      results.comments = true;
+    } catch (commentError) {
+      console.error('❌ Comment update failed:', commentError);
+    }
+    
+    return results;
+    
+  } catch (error) {
+    console.error('❌ Test failed:', error);
+    return results;
+  }
+}
 // NEW: Update multiple fields at once
 async updateQuoteFields(quoteId: string, fields: Record<string, any>): Promise<QuoteRequest> {
   try {
