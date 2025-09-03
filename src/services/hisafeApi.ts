@@ -260,7 +260,22 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
     throw new Error(`Request failed with ${response.status}: ${message} to: ${response.url}`);
   }
 }
-
+// NEW: Separate method for getting create buttons to avoid conflicts
+async getCreateButtons(): Promise<Array<{ formId: number; label: string }>> {
+  try {
+    console.log('🔄 Getting create buttons from portal metadata...');
+    const portalData = await this.request<any>("GET", "portal/metadata");
+    console.log('✅ Create buttons metadata:', portalData);
+    
+    return (portalData.createButtons || []).map((button: any) => ({
+      formId: button.formId,
+      label: button.label || `Form ${button.formId}`
+    }));
+  } catch (error) {
+    console.error('❌ Failed to get create buttons:', error);
+    return [];
+  }
+}
 // CORRECTED: Use the right endpoint pattern from working ApiClient.tsx
 async getPortalMetadata(): Promise<{
   title: string | null;
