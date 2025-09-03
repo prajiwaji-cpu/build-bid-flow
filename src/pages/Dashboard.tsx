@@ -33,7 +33,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   }, []);
   // Debug: Show available forms in console (you can remove this later)
   quotesService.debugAvailableForms();
-}, []);
+} []);
   const loadQuotesFromHiSAFE = async () => {
     try {
       setLoading(true);
