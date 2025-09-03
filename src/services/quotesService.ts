@@ -281,8 +281,6 @@ async testSimpleFieldUpdate(quoteId: string): Promise<boolean> {
 // Simplified and reliable status update method
 // FIXED: Replace your updateQuoteStatus method in src/services/quotesService.ts
 
-// TEMPORARY TEST: Replace your updateQuoteStatus method in src/services/quotesService.ts with this version
-
 async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequest> {
   try {
     const taskId = parseInt(quoteId);
@@ -290,31 +288,51 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
       throw new Error('Invalid quote ID');
     }
     
-    console.log(`🧪 TESTING: First trying simple field update for task ${taskId}`);
+    console.log(`🔄 Updating quote ${quoteId} status to ${status}`);
     
     // Get current quote
     const currentQuote = await this.getQuote(quoteId);
     if (!currentQuote) {
       throw new Error('Quote not found');
     }
+    
+    // Status mappings based on your Network tab data - matching exactly
+    const statusMappings = {
+      'pending': { id: 5, name: 'Awaiting Approval', type: 'Open' as const },
+      'processing': { id: 6, name: 'Work in Progress', type: 'InProgress' as const },
+      'approved': { id: 3, name: 'Quote Complete', type: 'Open' as const },
+      'denied': { id: 7, name: 'Quote Denied', type: 'Closed' as const }
+    };
+    
+    const hisafeStatus = statusMappings[status];
+    if (!hisafeStatus) {
+      throw new Error(`Unknown status: ${status}`);
+    }
 
-    // TEST 1: Try updating brief_description first (simple string field)
-    const testDescription = `ACME Corp - Metal Ball Bearing (TEST UPDATE ${Date.now()})`;
-    
-    console.log('🔄 Testing simple string field update...');
+    console.log('📤 Sending status update:', hisafeStatus);
+
+    // Update in HiSAFE using exact object structure from Network tab
     await hisafeApi.updateTask(taskId, {
-      brief_description: testDescription
+      status: {
+        id: hisafeStatus.id,
+        name: hisafeStatus.name,
+        type: hisafeStatus.type
+      }
     });
-    console.log('✅ Simple field update worked!');
     
-    // If that worked, the API connection is fine - the issue is with status updates
-    // For now, just return the quote without updating status
-    console.log('❌ Skipping status update due to known 500 error issue');
+    console.log(`✅ Updated task ${taskId} status to ${hisafeStatus.name} (ID: ${hisafeStatus.id})`);
     
-    return currentQuote;
+    // Return updated quote with new status
+    const updatedQuote = { 
+      ...currentQuote, 
+      status, 
+      updatedAt: new Date().toISOString() 
+    };
+    
+    return updatedQuote;
     
   } catch (error) {
-    console.error(`Failed to update quote ${quoteId}:`, error);
+    console.error(`Failed to update quote status ${quoteId}:`, error);
     throw error;
   }
 }
