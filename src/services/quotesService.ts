@@ -391,7 +391,38 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     console.log('📤 Sending comment update with structure:', {
       Comments: { text: updatedCommentsText }
     });
+    // Update using exact object structure from Network tab: Comments: { text: "..." }
+    await hisafeApi.updateTask(taskId, {
+      Comments: {
+        text: updatedCommentsText
+      }
+    });
     
+    console.log(`✅ Successfully updated Comments field in HiSAFE for task ${taskId}`);
+    
+    // Update local quote object with new comment
+    const newComment: Comment = {
+      id: Math.random().toString(36),
+      author: author,
+      authorType: 'contractor',
+      message: commentText,
+      timestamp: new Date().toISOString()
+    };
+    
+    const updatedQuote: QuoteRequest = {
+      ...currentQuote,
+      comments: [...currentQuote.comments, newComment],
+      updatedAt: new Date().toISOString()
+    };
+    
+    console.log(`✅ Comment added successfully to quote ${quoteId}`);
+    return updatedQuote;
+    
+  } catch (error) {
+    console.error(`Failed to add comment to quote ${quoteId}:`, error);
+    throw error;
+  }
+} 
 
 // SIMPLIFIED: Helper method to safely extract text from object fields
 private extractFieldText(fieldValue: any): string {
