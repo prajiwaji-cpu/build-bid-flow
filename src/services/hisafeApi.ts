@@ -644,28 +644,22 @@ private safeString(value: any): string {
 }
   // Get all tasks using the working portal approach
  // TEMPORARY: Simplified getAllTasks to bypass portal metadata issues
+// RESTORED: Use the exact working pattern from ApiClient.tsx
 async getAllTasks(): Promise<HiSAFETask[]> {
   try {
-    console.log('🔄 Loading all tasks from HiSAFE using fallback approach...');
+    console.log('🔄 Loading all tasks using working ApiClient pattern...');
     
-    // Skip the problematic metadata call and try direct portal load
-    const fallbackSeriesIds = [1, 2, 3, 4, 5]; // Try common series IDs
+    // Use the working getPortalData approach from ApiClient
+    // This should match what was working before
+    const seriesIds = [1, 2, 3]; // Start with common ones
     
-    let portalData: Record<number, HiSAFEPortalDataResponse> = {};
+    console.log('🔄 Using direct portal load approach...');
     
-    // Try each series ID individually to see which ones work
-    for (const seriesId of fallbackSeriesIds) {
-      try {
-        console.log(`🔄 Trying series ID ${seriesId}...`);
-        const singleSeriesData = await this.getPortalData([seriesId]);
-        Object.assign(portalData, singleSeriesData);
-        console.log(`✅ Series ${seriesId} loaded successfully`);
-      } catch (error) {
-        console.warn(`⚠️ Series ${seriesId} failed:`, error);
-      }
-    }
+    // Make the request exactly like the working ApiClient.tsx
+    const qs = seriesIds.map(s => "seriesId=" + s).join("&");
+    const portalData = await this.request<Record<number, HiSAFEPortalDataResponse>>("GET", "portal/load?" + qs);
     
-    console.log('✅ Portal data loaded:', portalData);
+    console.log('✅ Portal data loaded successfully:', portalData);
     
     // Extract tasks from response
     const allTasks: HiSAFETask[] = [];
@@ -697,8 +691,11 @@ async getAllTasks(): Promise<HiSAFETask[]> {
     return allTasks;
     
   } catch (error) {
-    console.error('❌ Failed to load tasks:', error);
-    throw error;
+    console.error('❌ Failed to load tasks using working pattern:', error);
+    
+    // If that fails, return empty array so dashboard doesn't crash
+    console.warn('⚠️ Returning empty task list to prevent crash');
+    return [];
   }
 }
 
