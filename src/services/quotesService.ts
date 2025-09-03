@@ -7,107 +7,60 @@ import { DataMappingService } from './dataMapping';
 class QuotesService {
   
   // Get all quotes with enhanced error handling and debugging
-  async getAllQuotes(): Promise<QuoteRequest[]> {
-    try {
-      console.log('🔄 Loading all quotes from HiSAFE...');
-      
-      // Load tasks from HiSAFE API
-      const tasks = await hisafeApi.getAllTasks();
-      console.log(`📊 Loaded ${tasks.length} tasks from HiSAFE`);
-      
-      if (tasks.length === 0) {
-        console.warn('⚠️ No tasks returned from HiSAFE API');
-        return [];
-      }
-
-      // Debug the first few tasks to understand structure
-      if (tasks.length > 0) {
-        console.group('🔍 Debugging task structures:');
-        tasks.slice(0, 3).forEach((task, index) => {
-          console.log(`Task ${index + 1}:`, {
-            task_id: task.task_id,
-            status_field: task.fields?.status,
-            status_root: task.status,
-            assignee_field: task.fields?.assignee,
-            owner_field: task.fields?.owner,
-            job_id: task.fields?.job_id,
-            brief_description: task.fields?.brief_description
-          });
-          DataMappingService.debugTaskStructure(task);
-        });
-        console.groupEnd();
-      }
-
-      // Auto-detect field mappings for better understanding
-      const fieldAnalysis = DataMappingService.autoDetectFieldMappings(tasks);
-      console.log('📋 Field analysis:', fieldAnalysis);
-
-      const allQuotes: QuoteRequest[] = [];
-      let successfulMappings = 0;
-      let failedMappings = 0;
-
-      // Process each task
-      tasks.forEach((task, index) => {
-        try {
-          console.log(`🔄 Processing task ${task.task_id} (${index + 1}/${tasks.length})`);
-          
-          // Map the task to a quote using the updated mapping service
-          const mappedQuote = DataMappingService.mapTaskToQuote(task);
-          allQuotes.push(mappedQuote);
-          successfulMappings++;
-          
-          console.log(`✅ Successfully mapped task ${task.task_id} to quote`);
-          
-        } catch (mappingError) {
-          console.error(`❌ Failed to map task ${task.task_id}:`, mappingError);
-          failedMappings++;
-          
-          // Create fallback quote to prevent total failure
-          try {
-            const fallbackQuote: QuoteRequest = {
-              id: task.task_id?.toString() || `fallback-${index}`,
-              clientName: this.extractFallbackClientName(task),
-              clientEmail: 'unknown@example.com',
-              clientPhone: '',
-              projectType: 'General',
-              projectDescription: this.extractFallbackDescription(task),
-              budget: '',
-              timeline: this.extractFallbackTimeline(task),
-              location: '',
-              status: this.extractFallbackStatus(task),
-              submittedAt: task.created_date || new Date().toISOString(),
-              updatedAt: task.updated_date || task.created_date || new Date().toISOString(),
-              estimatedCost: undefined,
-              notes: `Fallback mapping - Task ID: ${task.task_id}`,
-              comments: []
-            };
-            
-            allQuotes.push(fallbackQuote);
-            console.log(`⚠️ Added fallback quote for task ${task.task_id}`);
-            
-          } catch (fallbackError) {
-            console.error(`💥 Complete failure for task ${task.task_id}:`, fallbackError);
-          }
-        }
-      });
-
-      console.log(`📈 Mapping Results: ${successfulMappings} successful, ${failedMappings} failed, ${allQuotes.length} total quotes`);
-      
-      // Log status distribution for debugging
-      const statusCounts = allQuotes.reduce((acc, quote) => {
-        acc[quote.status] = (acc[quote.status] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-      console.log('📊 Status distribution:', statusCounts);
-
-      return allQuotes;
-      
-    } catch (error) {
-      console.error('💥 Failed to load quotes:', error);
-      throw new Error(`Failed to load quotes: ${error.message}`);
+ // RESTORED: The exact working version from your upload
+async getAllQuotes(): Promise<QuoteRequest[]> {
+  try {
+    console.log('🔄 Loading all quotes from HiSAFE...');
+    
+    // Load tasks from HiSAFE API - this is the key difference
+    const tasks = await hisafeApi.getAllTasks();
+    console.log(`📊 Loaded ${tasks.length} tasks from HiSAFE`);
+    
+    if (tasks.length === 0) {
+      console.warn('⚠️ No tasks returned from HiSAFE API');
+      return [];
     }
-  }
 
+    // Simple processing - no complex debugging
+    const allQuotes: QuoteRequest[] = [];
+
+    // Process each task with simple error handling
+    tasks.forEach((task, index) => {
+      try {
+        const mappedQuote = DataMappingService.mapTaskToQuote(task);
+        allQuotes.push(mappedQuote);
+      } catch (mappingError) {
+        console.error(`Failed to map task ${task.task_id}:`, mappingError);
+        // Create simple fallback
+        const fallbackQuote: QuoteRequest = {
+          id: task.task_id?.toString() || `fallback-${index}`,
+          clientName: this.extractFallbackClientName(task),
+          clientEmail: 'unknown@example.com',
+          clientPhone: '',
+          projectType: 'General',
+          projectDescription: this.extractFallbackDescription(task),
+          budget: '',
+          timeline: this.extractFallbackTimeline(task),
+          location: '',
+          status: this.extractFallbackStatus(task),
+          submittedAt: task.created_date || new Date().toISOString(),
+          updatedAt: task.updated_date || task.created_date || new Date().toISOString(),
+          estimatedCost: undefined,
+          notes: `Fallback mapping - Task ID: ${task.task_id}`,
+          comments: []
+        };
+        allQuotes.push(fallbackQuote);
+      }
+    });
+
+    console.log(`📊 Total quotes processed: ${allQuotes.length}`);
+    return allQuotes;
+    
+  } catch (error) {
+    console.error('💥 Failed to load quotes:', error);
+    throw new Error(`Failed to load quotes: ${error.message}`);
+  }
+}
   // Helper methods for fallback quote creation
   private extractFallbackClientName(task: any): string {
     if (task.fields?.owner?.name) return task.fields.owner.name;
