@@ -33,7 +33,6 @@ interface CommentDialogProps {
 }
 
 interface CommentFormData {
-  author: string;
   message: string;
 }
 
@@ -47,19 +46,21 @@ export function CommentDialog({
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<CommentFormData>({
-    defaultValues: {
-      author: 'Contractor', // Default author name
-      message: ''
-    }
-  });
+  defaultValues: {
+    message: ''
+  }
+});
   
-  const handleSubmit = async (data: CommentFormData) => {
-    if (!data.message.trim()) return;
+const handleSubmit = async (data: CommentFormData) => {
+  if (!data.message.trim()) return;
+  
+  try {
+    setIsSubmitting(true);
     
-    try {
-      setIsSubmitting(true);
-      await onAddComment(quote.id, data.message.trim(), data.author.trim() || 'User');
-      
+    // Get the current user's name automatically
+    const userName = await quotesService.getCurrentUserName();
+    
+    await onAddComment(quote.id, data.message.trim(), userName);
       // Reset form and close dialog
       form.reset();
       onOpenChange(false);
@@ -144,23 +145,7 @@ export function CommentDialog({
         {/* Add Comment Form */}
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="author"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Your Name</FormLabel>
-                  <FormControl>
-                    <Input 
-                      placeholder="Enter your name" 
-                      {...field} 
-                      disabled={isSubmitting}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+           
             
             <FormField
               control={form.control}
