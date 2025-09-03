@@ -30,7 +30,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
 
   useEffect(() => {
   loadQuotesFromHiSAFE();
-  quotesService.debugAvailableForms();  // ← Inside the useEffect
+  // quotesService.debugAvailableForms();  // ← Inside the useEffect
 }, []);  // ← Only one closing with dependency array
   const loadQuotesFromHiSAFE = async () => {
     try {
@@ -163,23 +163,22 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
     return quotes.reduce((sum, quote) => sum + (quote.estimatedCost || 0), 0);
   };
 
- const handleNewQuoteRequest = () => {
-  // REPLACE THIS NUMBER WITH YOUR CHOSEN FORM ID
-  const CHOSEN_FORM_ID = 123; // <-- Change this to the form ID you want to use
+const handleNewQuoteRequest = () => {
+  // Hardcode a form ID for now (replace with your actual form ID)
+  const FORM_ID = 1; // <-- Ask your HiSAFE admin what form ID to use
   
   try {
-    const createUrl = quotesService.getCreateFormUrl(CHOSEN_FORM_ID);
+    const createUrl = quotesService.getCreateFormUrl(FORM_ID);
     window.location.href = createUrl;
   } catch (error) {
     console.error('Failed to create form URL:', error);
     toast({
-      title: "Error",
+      title: "Error", 
       description: "Unable to open quote request form.",
       variant: "destructive"
     });
   }
 };
-
   const counts = getStatusCounts();
   const totalValue = getTotalValue();
 
