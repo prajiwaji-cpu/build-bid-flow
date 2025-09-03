@@ -110,6 +110,15 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
     if (!selectedQuoteForComment) return;
 
     try {
+          // ADD THESE DEBUG LINES:
+    console.log('🐞 DEBUG - handleSubmitComment called with:');
+    console.log('  quoteId:', quoteId);
+    console.log('  commentText:', commentText);
+    console.log('  author:', author);
+    
+    console.log(`Adding comment to quote ${quoteId}...`);
+    
+    const updatedQuote = await quotesService.addComment(quoteId, commentText, author);
       console.log(`Adding comment to task ${selectedQuoteForComment.id}:`, comment);
       await quotesService.addComment(selectedQuoteForComment.id, comment);
       
