@@ -29,11 +29,9 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   const { toast } = useToast();
 
   useEffect(() => {
-    loadQuotesFromHiSAFE();
-  }, []);
-  // Debug: Show available forms in console (you can remove this later)
-  quotesService.debugAvailableForms();
-} []);
+  loadQuotesFromHiSAFE();
+  quotesService.debugAvailableForms();  // ← Inside the useEffect
+}, []);  // ← Only one closing with dependency array
   const loadQuotesFromHiSAFE = async () => {
     try {
       setLoading(true);
