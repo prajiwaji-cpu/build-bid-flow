@@ -336,7 +336,29 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
     throw error;
   }
 }
-  // Add this new method to src/services/quotesService.ts to handle comment appending
+ // Add this method to generate the create form URL for a specific form
+getCreateFormUrl(formId: number): string {
+  const params = new URLSearchParams([
+    ["client_id", hisafeApi.config.clientId],
+    ["redirect_uri", window.location.href],
+  ]);
+  
+  return `${hisafeApi.config.baseUrl}/api/${hisafeApi.config.apiVersion}/portal/${hisafeApi.config.portalSlug}/create-task/${formId}?${params}`;
+}
+
+// Add this method to help you see what forms are available (for your reference only)
+async debugAvailableForms(): Promise<void> {
+  try {
+    const portalData = await hisafeApi.getPortalMetadata();
+    console.log('🔍 Available forms for your reference:');
+    portalData.createButtons.forEach((button, index) => {
+      console.log(`Form ${index + 1}: ID=${button.formId}, Label="${button.label}"`);
+    });
+  } catch (error) {
+    console.error('Failed to get available forms:', error);
+  }
+}
+ // Add this new method to src/services/quotesService.ts to handle comment appending
 
 // Fixed comment addition method using the new utility
 // CORRECTED: Replace the addComment method in src/services/quotesService.ts
