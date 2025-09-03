@@ -425,12 +425,24 @@ async updateTask(taskId: number, fields: Record<string, any>) {
     
     Object.entries(fields).forEach(([fieldName, fieldValue]) => {
       if (fieldName === 'Comments') {
-        // Comments appears to be an object with text property
-        if (typeof fieldValue === 'string') {
-          transformedFields[fieldName] = { text: fieldValue };
-        } else {
-          transformedFields[fieldName] = fieldValue;
-        }
+  // FIXED: Comments field uses rich text format with value/format/operation
+  if (typeof fieldValue === 'string') {
+    transformedFields[fieldName] = {
+      value: fieldValue,
+      format: "text",
+      operation: "append"  // This will add to existing comments instead of replacing
+    };
+  } else if (fieldValue && typeof fieldValue === 'object') {
+    // If it's already properly formatted, use as-is
+    transformedFields[fieldName] = fieldValue;
+  } else {
+    transformedFields[fieldName] = {
+      value: String(fieldValue || ''),
+      format: "text", 
+      operation: "append"
+    };
+  }
+  console.log('📝 Comments field transformed to:', transformedFields[fieldName]);
     } else if (fieldName === 'status') {
   // FIXED: Status field must be just the ID or name, not the full object
   if (typeof fieldValue === 'object' && fieldValue !== null) {
