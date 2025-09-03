@@ -261,10 +261,29 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
   }
 }
 
-  // FIXED: Match original getPortalMetadata exactly
-  async getPortalMetadata() {
-    return this.request('GET', 'portal/metadata');
+// CORRECTED: Use the right endpoint pattern from working ApiClient.tsx
+async getPortalMetadata(): Promise<{
+  title: string | null;
+  createButtons: Array<{ formId: number; label: string | null }>;
+}> {
+  try {
+    console.log('🔄 Getting portal metadata...');
+    // Use the same pattern as working ApiClient.tsx
+    const portalData = await this.request<any>("GET", "portal/metadata");
+    console.log('✅ Portal metadata:', portalData);
+    
+    return {
+      title: portalData.title || null,
+      createButtons: portalData.createButtons || []
+    };
+  } catch (error) {
+    console.error('❌ Failed to get portal metadata:', error);
+    return {
+      title: null,
+      createButtons: []
+    };
   }
+}
 
   // FIXED: Match original getPortalData exactly
   async getPortalData(seriesIds: number[]): Promise<Record<number, HiSAFEPortalDataResponse>> {
