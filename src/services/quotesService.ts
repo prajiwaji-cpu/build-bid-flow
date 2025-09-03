@@ -413,6 +413,16 @@ async addComment(quoteId: string, commentText: string, author: string = 'User'):
     throw error;
   }
 }
+// Add this method to the QuotesService class in src/services/quotesService.ts
+async getCurrentUserName(): Promise<string> {
+  try {
+    const userInfo = await hisafeApi.getCurrentUser();
+    return userInfo.name || 'User';
+  } catch (error) {
+    console.error('Failed to get current user name:', error);
+    return 'User';
+  }
+}
 // SIMPLIFIED: Helper method to safely extract text from object fields
 private extractFieldText(fieldValue: any): string {
   if (!fieldValue) return '';
