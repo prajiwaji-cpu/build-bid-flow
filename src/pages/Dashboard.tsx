@@ -106,12 +106,12 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
     setCommentDialogOpen(true);
   };
 
-  const handleSubmitComment = async (comment: string) => {
+ const handleSubmitComment = async (quoteId: string, comment: string, author: string) => {
   if (!selectedQuoteForComment) return;
 
   try {
     console.log(`Adding comment to task ${selectedQuoteForComment.id}:`, comment);
-    await quotesService.addComment(selectedQuoteForComment.id, comment);
+    await quotesService.addComment(selectedQuoteForComment.id, comment, author);
     
     // Refresh the specific quote
     const refreshedQuote = await quotesService.getQuote(selectedQuoteForComment.id);
