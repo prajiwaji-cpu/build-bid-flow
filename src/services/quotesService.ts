@@ -336,13 +336,14 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
     throw error;
   }
 }
- // Add this method to generate the create form URL for a specific form
+// CORRECTED: Use the same pattern as working ApiClient.tsx
 getCreateFormUrl(formId: number): string {
   const params = new URLSearchParams([
     ["client_id", hisafeApi.config.clientId],
     ["redirect_uri", window.location.href],
   ]);
   
+  // Use the same pattern as the working getCreateLinkUrl function
   return `${hisafeApi.config.baseUrl}/api/${hisafeApi.config.apiVersion}/portal/${hisafeApi.config.portalSlug}/create-task/${formId}?${params}`;
 }
 
