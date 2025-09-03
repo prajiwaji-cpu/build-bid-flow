@@ -348,11 +348,12 @@ getCreateFormUrl(formId: number): string {
 }
 
 // Add this method to help you see what forms are available (for your reference only)
+// Add this method to help you see what forms are available (for your reference only)
 async debugAvailableForms(): Promise<void> {
   try {
-    const portalData = await hisafeApi.getPortalMetadata();
+    const createButtons = await hisafeApi.getCreateButtons();
     console.log('🔍 Available forms for your reference:');
-    portalData.createButtons.forEach((button, index) => {
+    createButtons.forEach((button, index) => {
       console.log(`Form ${index + 1}: ID=${button.formId}, Label="${button.label}"`);
     });
   } catch (error) {
