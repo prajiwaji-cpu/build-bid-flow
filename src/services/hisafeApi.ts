@@ -260,45 +260,11 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
     throw new Error(`Request failed with ${response.status}: ${message} to: ${response.url}`);
   }
 }
-// NEW: Separate method for getting create buttons to avoid conflicts
-async getCreateButtons(): Promise<Array<{ formId: number; label: string }>> {
-  try {
-    console.log('🔄 Getting create buttons from portal metadata...');
-    const portalData = await this.request<any>("GET", "portal/metadata");
-    console.log('✅ Create buttons metadata:', portalData);
-    
-    return (portalData.createButtons || []).map((button: any) => ({
-      formId: button.formId,
-      label: button.label || `Form ${button.formId}`
-    }));
-  } catch (error) {
-    console.error('❌ Failed to get create buttons:', error);
-    return [];
+
+  // FIXED: Match original getPortalMetadata exactly
+  async getPortalMetadata() {
+    return this.request('GET', 'portal/metadata');
   }
-}
-// CORRECTED: Use the right endpoint pattern from working ApiClient.tsx
-async getPortalMetadata(): Promise<{
-  title: string | null;
-  createButtons: Array<{ formId: number; label: string | null }>;
-}> {
-  try {
-    console.log('🔄 Getting portal metadata...');
-    // Use the same pattern as working ApiClient.tsx
-    const portalData = await this.request<any>("GET", "portal/metadata");
-    console.log('✅ Portal metadata:', portalData);
-    
-    return {
-      title: portalData.title || null,
-      createButtons: portalData.createButtons || []
-    };
-  } catch (error) {
-    console.error('❌ Failed to get portal metadata:', error);
-    return {
-      title: null,
-      createButtons: []
-    };
-  }
-}
 
   // FIXED: Match original getPortalData exactly
   async getPortalData(seriesIds: number[]): Promise<Record<number, HiSAFEPortalDataResponse>> {
@@ -343,28 +309,7 @@ async getPortalMetadata(): Promise<{
     });
   }
 
- // Add this method to get portal metadata including available forms
-async getPortalMetadata(): Promise<{
-  title: string | null;
-  createButtons: Array<{ formId: number; label: string | null }>;
-}> {
-  try {
-    console.log('🔄 Getting portal metadata...');
-    const portalData = await this.request<any>("GET", `portal/${this.config.portalSlug}`);
-    console.log('✅ Portal metadata:', portalData);
-    
-    return {
-      title: portalData.title || null,
-      createButtons: portalData.createButtons || []
-    };
-  } catch (error) {
-    console.error('❌ Failed to get portal metadata:', error);
-    return {
-      title: null,
-      createButtons: []
-    };
-  }
-} 
+  
 // NEW: Utility method to update specific fields safely
 async updateTaskField(taskId: number, fieldName: string, fieldValue: any) {
   const updateFields: Record<string, any> = {};
@@ -643,61 +588,73 @@ private safeString(value: any): string {
   return String(value);
 }
   // Get all tasks using the working portal approach
- // TEMPORARY: Simplified getAllTasks to bypass portal metadata issues
-// RESTORED: Use the exact working pattern from ApiClient.tsx
-// EMERGENCY RESTORE: Skip all metadata calls and use direct approach
-// RESTORED: The actual working version from your upload
-async getAllTasks(): Promise<HiSAFETask[]> {
-  try {
-    console.log('🔄 Loading all tasks from HiSAFE using working approach...');
-    
-    // The working version doesn't use portal metadata at all!
-    // It goes directly to portal/load with predefined series IDs
-    const fallbackSeriesIds = [1, 2, 3];
-    
-    console.log('🔄 Using direct portal load approach...');
-    
-    // Make the request exactly like the working version
-    const portalData = await this.getPortalData(fallbackSeriesIds);
-    console.log('✅ Portal data loaded successfully:', portalData);
-    
-    // Extract tasks from response (same logic as working version)
-    const allTasks: HiSAFETask[] = [];
-    
-    Object.entries(portalData).forEach(([seriesId, componentData]) => {
-      console.log(`🔍 Processing series ${seriesId}:`, componentData);
+  async getAllTasks(): Promise<HiSAFETask[]> {
+    try {
+      console.log('🔄 Loading all tasks from HiSAFE using original pattern...');
       
-      if (componentData && componentData.type === 'list' && componentData.listResult) {
-        console.log(`📊 Found ${componentData.listResult.length} tasks in series ${seriesId}`);
-        
-        const tasks = componentData.listResult.map(item => ({
-          task_id: item.task_id,
-          fields: item.fields,
-          status: item.fields.status,
-          created_date: item.fields.created_date,
-          updated_date: item.fields.updated_date,
-          due_date: item.fields.due_date,
-          brief_description: item.fields.brief_description,
-          job_id: item.fields.job_id,
-          owner: item.fields.owner,
-          assignee: item.fields.assignee
-        } as HiSAFETask));
-        
-        allTasks.push(...tasks);
+      // Step 1: Get portal metadata
+      const metadata = await this.getPortalMetadata();
+      console.log('📋 Portal metadata:', metadata);
+      
+      // Step 2: Extract series IDs from metadata
+      const seriesIds: number[] = [];
+      if (metadata.dashboardComponents) {
+        for (const component of metadata.dashboardComponents) {
+          if (component.series) {
+            for (const series of component.series) {
+              seriesIds.push(series.id);
+            }
+          }
+        }
       }
-    });
-    
-    console.log(`✅ Total tasks loaded: ${allTasks.length}`);
-    return allTasks;
-    
-  } catch (error) {
-    console.error('❌ Failed to load tasks using working approach:', error);
-    
-    // Return empty array to prevent crash
-    console.warn('⚠️ Returning empty task list to prevent crash');
-    return [];
+      
+      console.log('📊 Found series IDs:', seriesIds);
+      
+      if (seriesIds.length === 0) {
+        console.warn('⚠️ No series IDs found in metadata, trying default');
+        seriesIds.push(1, 2, 3); // fallback
+      }
+      
+      // Step 3: Load portal data using original pattern
+      const portalData = await this.getPortalData(seriesIds);
+      console.log('✅ Portal data loaded:', portalData);
+      
+      // Step 4: Extract tasks from response
+      const allTasks: HiSAFETask[] = [];
+      
+      Object.entries(portalData).forEach(([seriesId, componentData]) => {
+        console.log(`🔍 Processing series ${seriesId}:`, componentData);
+        
+        if (componentData && componentData.type === 'list' && componentData.listResult) {
+          console.log(`📊 Found ${componentData.listResult.length} tasks in series ${seriesId}`);
+          
+          const tasks = componentData.listResult.map(item => ({
+            task_id: item.task_id,
+            fields: item.fields,
+            // Copy common fields to root for compatibility
+            status: item.fields.status,
+            created_date: item.fields.created_date,
+            updated_date: item.fields.updated_date,
+            due_date: item.fields.due_date,
+            brief_description: item.fields.brief_description,
+            job_id: item.fields.job_id,
+            owner: item.fields.owner,
+            assignee: item.fields.assignee
+          } as HiSAFETask));
+          
+          allTasks.push(...tasks);
+        }
+      });
+      
+      console.log(`✅ Total tasks loaded: ${allTasks.length}`);
+      return allTasks;
+      
+    } catch (error) {
+      console.error('❌ Failed to load tasks:', error);
+      throw error;
+    }
   }
-}
+
   // Test connection method
   async testConnection(): Promise<boolean> {
     try {
