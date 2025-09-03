@@ -309,7 +309,28 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
     });
   }
 
-  
+ // Add this method to get portal metadata including available forms
+async getPortalMetadata(): Promise<{
+  title: string | null;
+  createButtons: Array<{ formId: number; label: string | null }>;
+}> {
+  try {
+    console.log('🔄 Getting portal metadata...');
+    const portalData = await this.request<any>("GET", `portal/${this.config.portalSlug}`);
+    console.log('✅ Portal metadata:', portalData);
+    
+    return {
+      title: portalData.title || null,
+      createButtons: portalData.createButtons || []
+    };
+  } catch (error) {
+    console.error('❌ Failed to get portal metadata:', error);
+    return {
+      title: null,
+      createButtons: []
+    };
+  }
+} 
 // NEW: Utility method to update specific fields safely
 async updateTaskField(taskId: number, fieldName: string, fieldValue: any) {
   const updateFields: Record<string, any> = {};
