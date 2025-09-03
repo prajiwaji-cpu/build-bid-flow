@@ -91,7 +91,17 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
     }
   };
 
-  const handleAddComment = (quote: QuoteRequest) => {
+  const handleAddComment = (id: string) => {
+    const quote = quotes.find(q => q.id === id);
+    if (!quote) {
+      toast({
+        title: "Error",
+        description: "Quote not found",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setSelectedQuoteForComment(quote);
     setCommentDialogOpen(true);
   };
