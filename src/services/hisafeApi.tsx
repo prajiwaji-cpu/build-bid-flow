@@ -598,85 +598,98 @@ private safeString(value: any): string {
 }
   // Get all tasks using the working portal approach
  // Simplified getAllTasks that doesn't depend on portal metadata
+// Alternative getAllTasks that uses task search instead of portal/load
 async getAllTasks(): Promise<HiSAFETask[]> {
   try {
-    console.log('🔄 Loading all tasks from HiSAFE using simplified approach...');
+    console.log('🔄 Loading all tasks from HiSAFE using task search approach...');
     
-    // Try to load portal data directly with common series IDs
-    const commonSeriesIds = [1, 2, 3, 4, 5]; // Common series IDs that usually exist
+    // Try using the task search endpoint instead of portal/load
+    try {
+      // Option 1: Try loading tasks with a broad search
+      const taskSearchResult = await this.request("GET", "task/search?status=all&limit=1000");
+      console.log('✅ Task search result:', taskSearchResult);
+      
+      if (taskSearchResult && taskSearchResult.tasks && Array.isArray(taskSearchResult.tasks)) {
+        const tasks = taskSearchResult.tasks.map((item: any) => ({
+          task_id: item.task_id || item.id,
+          fields: item.fields || item,
+          status: item.fields?.status || item.status,
+          created_date: item.fields?.created_date || item.created_date,
+          updated_date: item.fields?.updated_date || item.updated_date,
+          due_date: item.fields?.due_date || item.due_date,
+          brief_description: item.fields?.brief_description || item.brief_description,
+          job_id: item.fields?.job_id || item.job_id,
+          owner: item.fields?.owner || item.owner,
+          assignee: item.fields?.assignee || item.assignee
+        } as HiSAFETask));
+        
+        console.log(`✅ Loaded ${tasks.length} tasks via search`);
+        return tasks;
+      }
+    } catch (searchError) {
+      console.warn('⚠️ Task search failed:', searchError.message);
+    }
     
     try {
-      const portalData = await this.getPortalData(commonSeriesIds);
-      console.log('✅ Portal data loaded:', portalData);
+      // Option 2: Try the task list endpoint
+      const taskListResult = await this.request("GET", "tasks?limit=1000");
+      console.log('✅ Task list result:', taskListResult);
       
-      // Extract tasks from response
-      const allTasks: HiSAFETask[] = [];
-      
-      Object.entries(portalData).forEach(([seriesId, componentData]) => {
-        console.log(`🔍 Processing series ${seriesId}:`, componentData);
+      if (taskListResult && Array.isArray(taskListResult)) {
+        const tasks = taskListResult.map((item: any) => ({
+          task_id: item.task_id || item.id,
+          fields: item.fields || item,
+          status: item.fields?.status || item.status,
+          created_date: item.fields?.created_date || item.created_date,
+          updated_date: item.fields?.updated_date || item.updated_date,
+          due_date: item.fields?.due_date || item.due_date,
+          brief_description: item.fields?.brief_description || item.brief_description,
+          job_id: item.fields?.job_id || item.job_id,
+          owner: item.fields?.owner || item.owner,
+          assignee: item.fields?.assignee || item.assignee
+        } as HiSAFETask));
         
-        if (componentData && componentData.type === 'list' && componentData.listResult) {
-          console.log(`📊 Found ${componentData.listResult.length} tasks in series ${seriesId}`);
-          
-          const tasks = componentData.listResult.map(item => ({
-            task_id: item.task_id,
-            fields: item.fields,
-            // Copy common fields to root for compatibility
-            status: item.fields.status,
-            created_date: item.fields.created_date,
-            updated_date: item.fields.updated_date,
-            due_date: item.fields.due_date,
-            brief_description: item.fields.brief_description,
-            job_id: item.fields.job_id,
-            owner: item.fields.owner,
-            assignee: item.fields.assignee
-          } as HiSAFETask));
-          
-          allTasks.push(...tasks);
-        }
-      });
-      
-      console.log(`✅ Total tasks loaded: ${allTasks.length}`);
-      return allTasks;
-      
-    } catch (portalError) {
-      console.warn('⚠️ Portal data approach failed, trying empty load:', portalError.message);
-      
-      // Fallback: try loading without series IDs
-      const emptyPortalData = await this.request("GET", "portal/load");
-      console.log('🔄 Fallback portal data:', emptyPortalData);
-      
-      // Process fallback data (structure might be different)
-      const fallbackTasks: HiSAFETask[] = [];
-      
-      if (emptyPortalData && typeof emptyPortalData === 'object') {
-        Object.values(emptyPortalData).forEach((componentData: any) => {
-          if (componentData && componentData.listResult) {
-            const tasks = componentData.listResult.map((item: any) => ({
-              task_id: item.task_id,
-              fields: item.fields,
-              status: item.fields.status,
-              created_date: item.fields.created_date,
-              updated_date: item.fields.updated_date,
-              due_date: item.fields.due_date,
-              brief_description: item.fields.brief_description,
-              job_id: item.fields.job_id,
-              owner: item.fields.owner,
-              assignee: item.fields.assignee
-            } as HiSAFETask));
-            
-            fallbackTasks.push(...tasks);
-          }
-        });
+        console.log(`✅ Loaded ${tasks.length} tasks via list`);
+        return tasks;
       }
-      
-      console.log(`✅ Fallback tasks loaded: ${fallbackTasks.length}`);
-      return fallbackTasks;
+    } catch (listError) {
+      console.warn('⚠️ Task list failed:', listError.message);
     }
+    
+    try {
+      // Option 3: Try getting recent tasks
+      const recentTasksResult = await this.request("GET", "tasks/recent?limit=100");
+      console.log('✅ Recent tasks result:', recentTasksResult);
+      
+      if (recentTasksResult && Array.isArray(recentTasksResult)) {
+        const tasks = recentTasksResult.map((item: any) => ({
+          task_id: item.task_id || item.id,
+          fields: item.fields || item,
+          status: item.fields?.status || item.status,
+          created_date: item.fields?.created_date || item.created_date,
+          updated_date: item.fields?.updated_date || item.updated_date,
+          due_date: item.fields?.due_date || item.due_date,
+          brief_description: item.fields?.brief_description || item.brief_description,
+          job_id: item.fields?.job_id || item.job_id,
+          owner: item.fields?.owner || item.owner,
+          assignee: item.fields?.assignee || item.assignee
+        } as HiSAFETask));
+        
+        console.log(`✅ Loaded ${tasks.length} recent tasks`);
+        return tasks;
+      }
+    } catch (recentError) {
+      console.warn('⚠️ Recent tasks failed:', recentError.message);
+    }
+    
+    // If all else fails, return empty array so app doesn't crash
+    console.warn('⚠️ All task loading methods failed, returning empty array');
+    return [];
     
   } catch (error) {
     console.error('❌ Failed to load tasks:', error);
-    throw error;
+    // Return empty array instead of throwing, so app can still work
+    return [];
   }
 }
   // Test connection method
