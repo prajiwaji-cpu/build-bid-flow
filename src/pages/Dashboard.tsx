@@ -278,8 +278,6 @@ const handleNewQuoteRequest = () => {
                 {quotes.length} quotes available
               </p>
             </div>
-            
-            {/* New Quote Request Button */}
             <div className="flex items-center gap-2">
               <Button 
                 onClick={handleNewQuoteRequest}
@@ -293,15 +291,14 @@ const handleNewQuoteRequest = () => {
                 variant="outline"
                 size="sm"
               >
-              Logout
-             </Button>
-          </div>
+                Logout
+              </Button>
             </div>
           </div>
         </div>
       </div>
 
-      <div> className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 py-8">
 
         {/* Stats Cards */}
         <div> className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
