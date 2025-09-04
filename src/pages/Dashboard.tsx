@@ -311,7 +311,7 @@ const handleNewQuoteRequest = () => {
               <Building2 className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div> className="text-2xl font-bold">{counts.all}</div>
+              <div className="text-2xl font-bold">{counts.all}</div>
               <p className="text-xs text-muted-foreground">
                 active quotes
               </p>
