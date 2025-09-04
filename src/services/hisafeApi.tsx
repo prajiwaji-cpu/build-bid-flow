@@ -597,38 +597,19 @@ private safeString(value: any): string {
   return String(value);
 }
   // Get all tasks using the working portal approach
-  async getAllTasks(): Promise<HiSAFETask[]> {
+ // Simplified getAllTasks that doesn't depend on portal metadata
+async getAllTasks(): Promise<HiSAFETask[]> {
+  try {
+    console.log('🔄 Loading all tasks from HiSAFE using simplified approach...');
+    
+    // Try to load portal data directly with common series IDs
+    const commonSeriesIds = [1, 2, 3, 4, 5]; // Common series IDs that usually exist
+    
     try {
-      console.log('🔄 Loading all tasks from HiSAFE using original pattern...');
-      
-      // Step 1: Get portal metadata
-      const metadata = await this.getPortalMetadata();
-      console.log('📋 Portal metadata:', metadata);
-      
-      // Step 2: Extract series IDs from metadata
-      const seriesIds: number[] = [];
-      if (metadata.dashboardComponents) {
-        for (const component of metadata.dashboardComponents) {
-          if (component.series) {
-            for (const series of component.series) {
-              seriesIds.push(series.id);
-            }
-          }
-        }
-      }
-      
-      console.log('📊 Found series IDs:', seriesIds);
-      
-      if (seriesIds.length === 0) {
-        console.warn('⚠️ No series IDs found in metadata, trying default');
-        seriesIds.push(1, 2, 3); // fallback
-      }
-      
-      // Step 3: Load portal data using original pattern
-      const portalData = await this.getPortalData(seriesIds);
+      const portalData = await this.getPortalData(commonSeriesIds);
       console.log('✅ Portal data loaded:', portalData);
       
-      // Step 4: Extract tasks from response
+      // Extract tasks from response
       const allTasks: HiSAFETask[] = [];
       
       Object.entries(portalData).forEach(([seriesId, componentData]) => {
@@ -658,12 +639,46 @@ private safeString(value: any): string {
       console.log(`✅ Total tasks loaded: ${allTasks.length}`);
       return allTasks;
       
-    } catch (error) {
-      console.error('❌ Failed to load tasks:', error);
-      throw error;
+    } catch (portalError) {
+      console.warn('⚠️ Portal data approach failed, trying empty load:', portalError.message);
+      
+      // Fallback: try loading without series IDs
+      const emptyPortalData = await this.request("GET", "portal/load");
+      console.log('🔄 Fallback portal data:', emptyPortalData);
+      
+      // Process fallback data (structure might be different)
+      const fallbackTasks: HiSAFETask[] = [];
+      
+      if (emptyPortalData && typeof emptyPortalData === 'object') {
+        Object.values(emptyPortalData).forEach((componentData: any) => {
+          if (componentData && componentData.listResult) {
+            const tasks = componentData.listResult.map((item: any) => ({
+              task_id: item.task_id,
+              fields: item.fields,
+              status: item.fields.status,
+              created_date: item.fields.created_date,
+              updated_date: item.fields.updated_date,
+              due_date: item.fields.due_date,
+              brief_description: item.fields.brief_description,
+              job_id: item.fields.job_id,
+              owner: item.fields.owner,
+              assignee: item.fields.assignee
+            } as HiSAFETask));
+            
+            fallbackTasks.push(...tasks);
+          }
+        });
+      }
+      
+      console.log(`✅ Fallback tasks loaded: ${fallbackTasks.length}`);
+      return fallbackTasks;
     }
+    
+  } catch (error) {
+    console.error('❌ Failed to load tasks:', error);
+    throw error;
   }
-
+}
   // Test connection method
   async testConnection(): Promise<boolean> {
     try {
