@@ -288,14 +288,14 @@ const handleNewQuoteRequest = () => {
                 <Plus className="w-4 h-4 mr-2" />
                 New Quote Request
               </Button>
-                <Button 
-    onClick={handleLogout}
-    variant="outline"
-    size="sm"
-  >
-    Logout
-  </Button>
-</div>
+              <Button 
+                onClick={handleLogout}
+                variant="outline"
+                size="sm"
+              >
+              Logout
+             </Button>
+          </div>
             </div>
           </div>
         </div>
