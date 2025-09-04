@@ -599,96 +599,82 @@ private safeString(value: any): string {
   // Get all tasks using the working portal approach
  // Simplified getAllTasks that doesn't depend on portal metadata
 // Alternative getAllTasks that uses task search instead of portal/load
+// Load tasks using the actual series IDs from portal metadata
 async getAllTasks(): Promise<HiSAFETask[]> {
   try {
-    console.log('🔄 Loading all tasks from HiSAFE using task search approach...');
+    console.log('🔄 Loading all tasks from HiSAFE using portal metadata series IDs...');
     
-    // Try using the task search endpoint instead of portal/load
-    try {
-      // Option 1: Try loading tasks with a broad search
-      const taskSearchResult = await this.request("GET", "task/search?status=all&limit=1000");
-      console.log('✅ Task search result:', taskSearchResult);
-      
-      if (taskSearchResult && taskSearchResult.tasks && Array.isArray(taskSearchResult.tasks)) {
-        const tasks = taskSearchResult.tasks.map((item: any) => ({
-          task_id: item.task_id || item.id,
-          fields: item.fields || item,
-          status: item.fields?.status || item.status,
-          created_date: item.fields?.created_date || item.created_date,
-          updated_date: item.fields?.updated_date || item.updated_date,
-          due_date: item.fields?.due_date || item.due_date,
-          brief_description: item.fields?.brief_description || item.brief_description,
-          job_id: item.fields?.job_id || item.job_id,
-          owner: item.fields?.owner || item.owner,
-          assignee: item.fields?.assignee || item.assignee
-        } as HiSAFETask));
-        
-        console.log(`✅ Loaded ${tasks.length} tasks via search`);
-        return tasks;
+    // Step 1: Get portal metadata to find the real series IDs
+    const metadata = await this.getPortalMetadata();
+    console.log('📋 Portal metadata for series extraction:', metadata);
+    
+    // Step 2: Extract ACTUAL series IDs from metadata
+    const seriesIds: number[] = [];
+    if (metadata.dashboardComponents && Array.isArray(metadata.dashboardComponents)) {
+      for (const component of metadata.dashboardComponents) {
+        console.log('📊 Checking component:', component);
+        if (component.series && Array.isArray(component.series)) {
+          for (const series of component.series) {
+            console.log('📈 Found series:', series);
+            if (series.id) {
+              seriesIds.push(series.id);
+            }
+          }
+        }
       }
-    } catch (searchError) {
-      console.warn('⚠️ Task search failed:', searchError.message);
     }
     
-    try {
-      // Option 2: Try the task list endpoint
-      const taskListResult = await this.request("GET", "tasks?limit=1000");
-      console.log('✅ Task list result:', taskListResult);
-      
-      if (taskListResult && Array.isArray(taskListResult)) {
-        const tasks = taskListResult.map((item: any) => ({
-          task_id: item.task_id || item.id,
-          fields: item.fields || item,
-          status: item.fields?.status || item.status,
-          created_date: item.fields?.created_date || item.created_date,
-          updated_date: item.fields?.updated_date || item.updated_date,
-          due_date: item.fields?.due_date || item.due_date,
-          brief_description: item.fields?.brief_description || item.brief_description,
-          job_id: item.fields?.job_id || item.job_id,
-          owner: item.fields?.owner || item.owner,
-          assignee: item.fields?.assignee || item.assignee
-        } as HiSAFETask));
-        
-        console.log(`✅ Loaded ${tasks.length} tasks via list`);
-        return tasks;
-      }
-    } catch (listError) {
-      console.warn('⚠️ Task list failed:', listError.message);
+    console.log('🎯 Extracted series IDs from metadata:', seriesIds);
+    
+    if (seriesIds.length === 0) {
+      console.log('⚠️ No series IDs found in metadata. Full metadata structure:');
+      console.log(JSON.stringify(metadata, null, 2));
+      console.log('⚠️ Returning empty array - check your HiSAFE portal configuration');
+      return [];
     }
     
-    try {
-      // Option 3: Try getting recent tasks
-      const recentTasksResult = await this.request("GET", "tasks/recent?limit=100");
-      console.log('✅ Recent tasks result:', recentTasksResult);
+    // Step 3: Load portal data using the REAL series IDs
+    const portalData = await this.getPortalData(seriesIds);
+    console.log('✅ Portal data loaded with real series IDs:', portalData);
+    
+    // Step 4: Extract tasks from response
+    const allTasks: HiSAFETask[] = [];
+    
+    Object.entries(portalData).forEach(([seriesId, componentData]) => {
+      console.log(`🔍 Processing series ${seriesId}:`, componentData);
       
-      if (recentTasksResult && Array.isArray(recentTasksResult)) {
-        const tasks = recentTasksResult.map((item: any) => ({
-          task_id: item.task_id || item.id,
-          fields: item.fields || item,
-          status: item.fields?.status || item.status,
-          created_date: item.fields?.created_date || item.created_date,
-          updated_date: item.fields?.updated_date || item.updated_date,
-          due_date: item.fields?.due_date || item.due_date,
-          brief_description: item.fields?.brief_description || item.brief_description,
-          job_id: item.fields?.job_id || item.job_id,
-          owner: item.fields?.owner || item.owner,
-          assignee: item.fields?.assignee || item.assignee
+      if (componentData && componentData.type === 'list' && componentData.listResult) {
+        console.log(`📊 Found ${componentData.listResult.length} tasks in series ${seriesId}`);
+        
+        const tasks = componentData.listResult.map(item => ({
+          task_id: item.task_id,
+          fields: item.fields,
+          // Copy common fields to root for compatibility
+          status: item.fields.status,
+          created_date: item.fields.created_date,
+          updated_date: item.fields.updated_date,
+          due_date: item.fields.due_date,
+          brief_description: item.fields.brief_description,
+          job_id: item.fields.job_id,
+          owner: item.fields.owner,
+          assignee: item.fields.assignee
         } as HiSAFETask));
         
-        console.log(`✅ Loaded ${tasks.length} recent tasks`);
-        return tasks;
+        allTasks.push(...tasks);
       }
-    } catch (recentError) {
-      console.warn('⚠️ Recent tasks failed:', recentError.message);
-    }
+    });
     
-    // If all else fails, return empty array so app doesn't crash
-    console.warn('⚠️ All task loading methods failed, returning empty array');
-    return [];
-    
+    console.log(`✅ Total tasks loaded: ${allTasks.length}`);
+    return allTasks;
+      
   } catch (error) {
     console.error('❌ Failed to load tasks:', error);
-    // Return empty array instead of throwing, so app can still work
+    console.log('🔍 Detailed error info:', {
+      message: error.message,
+      stack: error.stack
+    });
+    
+    // Return empty array so app doesn't crash
     return [];
   }
 }
