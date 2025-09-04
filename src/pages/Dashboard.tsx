@@ -28,6 +28,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   // Add this line with your other useState declarations
   const [portalMetadata, setPortalMetadata] = useState<any>(null);
+  const [portalMetadata, setPortalMetadata] = useState<any>(null);
   const { toast } = useToast();
 
 useEffect(() => {
@@ -69,7 +70,7 @@ useEffect(() => {
 const loadPortalMetadata = async () => {
   try {
     console.log('🔄 Loading portal metadata...');
-    const metadata = await getPortalMetadata(new AbortController().signal);
+    const metadata = await quotesService.getPortalMetadata();
     setPortalMetadata(metadata);
     console.log('✅ Portal metadata loaded:', metadata.createButtons);
   } catch (err) {
@@ -180,14 +181,14 @@ const handleNewQuoteRequest = () => {
     // If we have portal metadata with create buttons, use the first one
     if (portalMetadata?.createButtons && portalMetadata.createButtons.length > 0) {
       const firstCreateButton = portalMetadata.createButtons[0];
-      const createUrl = getCreateLinkUrl(firstCreateButton.formId);
+      const createUrl = quotesService.getCreateFormUrl(firstCreateButton.formId);
       console.log('🔗 Opening create form URL:', createUrl);
       window.location.href = createUrl;
     } else {
       // Fallback to hardcoded form ID if no metadata available yet
       console.log('⚠️ No portal metadata available, using fallback');
       const FALLBACK_FORM_ID = 1;
-      const createUrl = getCreateLinkUrl(FALLBACK_FORM_ID);
+      const createUrl = quotesService.getCreateFormUrl(FALLBACK_FORM_ID);
       window.location.href = createUrl;
     }
   } catch (error) {
