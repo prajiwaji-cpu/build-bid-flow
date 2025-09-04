@@ -265,14 +265,7 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
   async getPortalMetadata() {
     return this.request('GET', 'portal/metadata');
   }
-// Add this method to your HiSafeApi class  
-getCreateFormUrl(formId: number): string {
-  const params = new URLSearchParams([
-    ["client_id", this.config.clientId],
-    ["redirect_uri", window.location.href],
-  ]);
-  return `${this.config.baseUrl}/api/9.0.0/portal/${this.config.portalSlug}/create-task/${formId}?${params}`;
-}
+
   // FIXED: Match original getPortalData exactly
   async getPortalData(seriesIds: number[]): Promise<Record<number, HiSAFEPortalDataResponse>> {
     const qs = seriesIds.map(s => "seriesId=" + s).join("&");
