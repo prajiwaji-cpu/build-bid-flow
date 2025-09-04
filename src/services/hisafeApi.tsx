@@ -309,7 +309,32 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
     });
   }
 
+ // Add this method to your HiSafeApi class
+async getPortalMetadata(): Promise<any> {
+  const response = await fetch(`${this.config.baseUrl}/api/9.0.0/portal/metadata`, {
+    method: 'GET',
+    headers: {
+      ...this.headers,
+      'X-Timezone-IANA': Intl.DateTimeFormat().resolvedOptions().timeZone,
+      'X-Locale': Intl.NumberFormat().resolvedOptions().locale,
+    },
+  });
   
+  if (!response.ok) {
+    throw new Error(`Failed to load portal metadata: ${response.statusText}`);
+  }
+  
+  return await response.json();
+}
+
+// Add this method to your HiSafeApi class  
+getCreateFormUrl(formId: number): string {
+  const params = new URLSearchParams([
+    ["client_id", this.config.clientId],
+    ["redirect_uri", window.location.href],
+  ]);
+  return `${this.config.baseUrl}/api/9.0.0/portal/${this.config.portalSlug}/create-task/${formId}?${params}`;
+} 
 // NEW: Utility method to update specific fields safely
 async updateTaskField(taskId: number, fieldName: string, fieldValue: any) {
   const updateFields: Record<string, any> = {};
