@@ -9,7 +9,7 @@ import { CommentDialog } from '@/components/CommentDialog';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteRequest, QuoteStatus } from '@/types/quote';
 import { quotesService } from '@/services/quotesService';
-import { getPortalMetadata, getCreateLinkUrl } from '../../ApiClient';
+
 import { 
   RefreshCw, 
   Building2, 
@@ -28,7 +28,7 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
   // Add this line with your other useState declarations
   const [portalMetadata, setPortalMetadata] = useState<any>(null);
-  const [portalMetadata, setPortalMetadata] = useState<any>(null);
+ 
   const { toast } = useToast();
 
 useEffect(() => {
