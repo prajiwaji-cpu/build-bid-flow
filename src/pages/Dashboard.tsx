@@ -278,7 +278,8 @@ const handleNewQuoteRequest = () => {
                 {quotes.length} quotes available
               </p>
             </div>
-            <div className="flex items-center gap-2">
+           
+       <div className="flex items-center gap-2">
               <Button 
                 onClick={handleNewQuoteRequest}
                 className="bg-primary hover:bg-primary-hover text-primary-foreground font-medium"
