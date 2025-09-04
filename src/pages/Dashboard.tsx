@@ -9,7 +9,7 @@ import { CommentDialog } from '@/components/CommentDialog';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteRequest, QuoteStatus } from '@/types/quote';
 import { quotesService } from '@/services/quotesService';
-import { getPortalMetadata, getCreateLinkUrl } from '@/services/ApiClient';
+import { getPortalMetadata, getCreateLinkUrl } from '../../ApiClient';
 import { 
   RefreshCw, 
   Building2, 
