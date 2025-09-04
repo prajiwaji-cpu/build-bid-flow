@@ -316,23 +316,7 @@ getCreateFormUrl(formId: number): string {
     });
   }
 
- // Add this method to your HiSafeApi class
-async getPortalMetadata(): Promise<any> {
-  const response = await fetch(`${this.config.baseUrl}/api/9.0.0/portal/metadata`, {
-    method: 'GET',
-    headers: {
-      ...this.headers,
-      'X-Timezone-IANA': Intl.DateTimeFormat().resolvedOptions().timeZone,
-      'X-Locale': Intl.NumberFormat().resolvedOptions().locale,
-    },
-  });
-  
-  if (!response.ok) {
-    throw new Error(`Failed to load portal metadata: ${response.statusText}`);
-  }
-  
-  return await response.json();
-}
+
 
 // Add this method to your HiSafeApi class  
 getCreateFormUrl(formId: number): string {
