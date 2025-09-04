@@ -691,6 +691,65 @@ async getAllTasks(): Promise<HiSAFETask[]> {
       return false;
     }
   }
+// Add proper logout method
+async logout(): Promise<void> {
+  try {
+    console.log('🚪 Logging out user...');
+    
+    // Clear all stored tokens
+    localStorage.removeItem(TOKEN_LOCAL_STORAGE_KEY);
+    delete this.headers["Authorization"];
+    
+    // Clear any stored auth codes
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith(CODE_VERIFIER_SESSION_STORAGE_KEY)) {
+        sessionStorage.removeItem(key);
+      }
+    });
+    
+    console.log('✅ Tokens cleared, redirecting to logout...');
+    
+    // Redirect to HiSAFE logout (with confirm=true to force re-login)
+    location.href = await this.getAuthorizeUrl(true);
+    
+  } catch (error) {
+    console.error('❌ Logout failed:', error);
+    // Fallback: just clear everything and refresh
+    localStorage.clear();
+    sessionStorage.clear();
+    location.reload();
+  }
+}
+
+// Add method to force fresh authentication
+async forceReauth(): Promise<void> {
+  try {
+    console.log('🔑 Forcing fresh authentication...');
+    
+    // Clear all stored tokens
+    localStorage.removeItem(TOKEN_LOCAL_STORAGE_KEY);
+    delete this.headers["Authorization"];
+    
+    // Clear any stored auth codes
+    Object.keys(sessionStorage).forEach(key => {
+      if (key.startsWith(CODE_VERIFIER_SESSION_STORAGE_KEY)) {
+        sessionStorage.removeItem(key);
+      }
+    });
+    
+    // Redirect to fresh auth
+    location.href = await this.getAuthorizeUrl(false);
+    
+  } catch (error) {
+    console.error('❌ Force reauth failed:', error);
+    location.reload();
+  }
+}
+
+// Add method to check if user is authenticated
+isAuthenticated(): boolean {
+  return !!this.headers["Authorization"] && !!localStorage[TOKEN_LOCAL_STORAGE_KEY];
+}
 }
 
 // Create and export service instance
