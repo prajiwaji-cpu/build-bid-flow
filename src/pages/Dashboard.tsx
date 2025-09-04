@@ -295,7 +295,7 @@ const handleNewQuoteRequest = () => {
               >
               Logout
              </Button>
-          </div>
+         // </div>
             </div>
           </div>
         </div>
