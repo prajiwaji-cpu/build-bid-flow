@@ -25,7 +25,8 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   const [error, setError] = useState<string | null>(null);
   const [selectedQuoteForComment, setSelectedQuoteForComment] = useState<QuoteRequest | null>(null);
   const [commentDialogOpen, setCommentDialogOpen] = useState(false);
-  
+  // Add this line with your other useState declarations
+  const [portalMetadata, setPortalMetadata] = useState<any>(null);
   const { toast } = useToast();
 
   useEffect(() => {
