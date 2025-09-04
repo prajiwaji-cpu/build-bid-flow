@@ -336,7 +336,18 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
     throw error;
   }
 }
+// Add authentication management methods
+async logout(): Promise<void> {
+  return hisafeApi.logout();
+}
 
+async forceReauth(): Promise<void> {
+  return hisafeApi.forceReauth();
+}
+
+isAuthenticated(): boolean {
+  return hisafeApi.isAuthenticated();
+}
 // Add this method to your QuotesService class
 // Add this method to your QuotesService class
 async getPortalMetadata(): Promise<any> {
