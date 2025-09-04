@@ -338,6 +338,7 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
 }
 
 // Add this method to your QuotesService class
+// Add this method to your QuotesService class
 async getPortalMetadata(): Promise<any> {
   try {
     console.log('🔄 Loading portal metadata...');
@@ -349,7 +350,6 @@ async getPortalMetadata(): Promise<any> {
     throw error;
   }
 }
-
 // Add this method to your QuotesService class
 getCreateFormUrl(formId: number): string {
   try {
