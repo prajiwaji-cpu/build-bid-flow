@@ -52,16 +52,34 @@ useEffect(() => {
 
       console.log(`Successfully loaded ${allQuotes.length} quotes`);
 
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : 'Failed to load quotes';
-      setError(errorMessage);
-      console.error('Error loading quotes:', err);
+   } catch (err) {
+  console.error('Error loading quotes:', err);
+  
+  // Check if it's an auth error
+  if (err.message && (err.message.includes('401') || err.message.includes('portal metadata'))) {
+    console.log('🔑 Detected authentication issue...');
+    
+    if (!quotesService.isAuthenticated()) {
+      setError('Authentication expired. Please log out and log back in.');
       
       toast({
-        title: "Error Loading Data",
-        description: errorMessage,
+        title: "Authentication Expired",
+        description: "Your session has expired. Please use the logout button and log back in.",
         variant: "destructive"
       });
+    } else {
+      setError('Connection issue. Try logging out and back in.');
+    }
+  } else {
+    const errorMessage = err instanceof Error ? err.message : 'Failed to load quotes';
+    setError(errorMessage);
+    
+    toast({
+      title: "Error Loading Data",
+      description: errorMessage,
+      variant: "destructive"
+    });
+  }
       
     } finally {
       setLoading(false);
@@ -153,7 +171,15 @@ const loadPortalMetadata = async () => {
   }
 };
 
-
+const handleLogout = async () => {
+  try {
+    await quotesService.logout();
+  } catch (error) {
+    console.error('Logout failed:', error);
+    // Fallback: just refresh the page
+    location.reload();
+  }
+};
   const getFilteredQuotes = (status?: QuoteStatus) => {
     let filteredQuotes = status ? quotes.filter(quote => quote.status === status) : quotes;
     return filteredQuotes.sort((a, b) => {
@@ -262,6 +288,14 @@ const handleNewQuoteRequest = () => {
                 <Plus className="w-4 h-4 mr-2" />
                 New Quote Request
               </Button>
+                <Button 
+    onClick={handleLogout}
+    variant="outline"
+    size="sm"
+  >
+    Logout
+  </Button>
+</div>
             </div>
           </div>
         </div>
