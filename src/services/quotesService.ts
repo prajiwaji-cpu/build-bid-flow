@@ -336,6 +336,29 @@ async updateQuoteStatus(quoteId: string, status: QuoteStatus): Promise<QuoteRequ
     throw error;
   }
 }
+
+// Add this method to your QuotesService class
+async getPortalMetadata(): Promise<any> {
+  try {
+    console.log('🔄 Loading portal metadata...');
+    const metadata = await hisafeApi.getPortalMetadata();
+    console.log('✅ Portal metadata loaded:', metadata);
+    return metadata;
+  } catch (error) {
+    console.error('Failed to load portal metadata:', error);
+    throw error;
+  }
+}
+
+// Add this method to your QuotesService class
+getCreateFormUrl(formId: number): string {
+  try {
+    return hisafeApi.getCreateFormUrl(formId);
+  } catch (error) {
+    console.error('Failed to generate create form URL:', error);
+    throw error;
+  }
+}
   // Add this new method to src/services/quotesService.ts to handle comment appending
 
 // Fixed comment addition method using the new utility
