@@ -9,6 +9,7 @@ import { CommentDialog } from '@/components/CommentDialog';
 import { useToast } from '@/hooks/use-toast';
 import { QuoteRequest, QuoteStatus } from '@/types/quote';
 import { quotesService } from '@/services/quotesService';
+import { getPortalMetadata, getCreateLinkUrl } from '@/services/ApiClient';
 import { 
   RefreshCw, 
   Building2, 
@@ -29,10 +30,10 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   const [portalMetadata, setPortalMetadata] = useState<any>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
+useEffect(() => {
   loadQuotesFromHiSAFE();
-  // quotesService.debugAvailableForms();  // ← Inside the useEffect
-}, []);  // ← Only one closing with dependency array
+  loadPortalMetadata();
+}, []);
   const loadQuotesFromHiSAFE = async () => {
     try {
       setLoading(true);
@@ -65,7 +66,17 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
       setLoading(false);
     }
   };
-
+const loadPortalMetadata = async () => {
+  try {
+    console.log('🔄 Loading portal metadata...');
+    const metadata = await getPortalMetadata(new AbortController().signal);
+    setPortalMetadata(metadata);
+    console.log('✅ Portal metadata loaded:', metadata.createButtons);
+  } catch (err) {
+    console.error('Error loading portal metadata:', err);
+    // Don't show error toast for this - it's not critical
+  }
+};
   const handleStatusChange = async (id: string, status: QuoteStatus) => {
     try {
       console.log(`Updating task ${id} status to ${status}`);
@@ -165,12 +176,20 @@ export function Dashboard({ viewMode = 'contractor' }: { viewMode?: 'contractor'
   };
 
 const handleNewQuoteRequest = () => {
-  // Hardcode a form ID for now (replace with your actual form ID)
-  const FORM_ID = 1; // <-- Ask your HiSAFE admin what form ID to use
-  
   try {
-    const createUrl = quotesService.getCreateFormUrl(FORM_ID);
-    window.location.href = createUrl;
+    // If we have portal metadata with create buttons, use the first one
+    if (portalMetadata?.createButtons && portalMetadata.createButtons.length > 0) {
+      const firstCreateButton = portalMetadata.createButtons[0];
+      const createUrl = getCreateLinkUrl(firstCreateButton.formId);
+      console.log('🔗 Opening create form URL:', createUrl);
+      window.location.href = createUrl;
+    } else {
+      // Fallback to hardcoded form ID if no metadata available yet
+      console.log('⚠️ No portal metadata available, using fallback');
+      const FALLBACK_FORM_ID = 1;
+      const createUrl = getCreateLinkUrl(FALLBACK_FORM_ID);
+      window.location.href = createUrl;
+    }
   } catch (error) {
     console.error('Failed to create form URL:', error);
     toast({
