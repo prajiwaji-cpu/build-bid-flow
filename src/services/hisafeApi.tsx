@@ -168,7 +168,32 @@ private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
     if (this.headers["Authorization"]) {
       return; // Already authenticated
     }
-
+     // PREVENT INFINITE REDIRECT LOOP
+  const params = new URLSearchParams(location.search);
+  const error = params.get("error");
+  
+  if (error) {
+    console.error("🚨 OAuth Error:", {
+      error: error,
+      error_description: params.get("error_description"),
+      state: params.get("state"),
+      currentUrl: location.href,
+      clientId: this.config.clientId
+    });
+    
+    // Clear error params to prevent loop
+    const cleanParams = new URLSearchParams(location.search);
+    cleanParams.delete("error");
+    cleanParams.delete("error_description"); 
+    cleanParams.delete("state");
+    
+    const cleanUrl = location.origin + location.pathname + 
+      (cleanParams.toString() ? "?" + cleanParams.toString() : "");
+    history.replaceState(null, "", cleanUrl);
+    
+    // Stop the loop - don't try to authenticate again
+    throw new Error(`OAuth authentication failed: ${error}`);
+  }
     type HisafeTokens = {
       access_token: string;
       token_type: "Bearer";
