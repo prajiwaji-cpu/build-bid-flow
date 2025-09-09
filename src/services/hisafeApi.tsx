@@ -115,10 +115,11 @@ class HiSAFEApiService {
     };
 
     // FIXED: Create alwaysAddParams exactly like original ApiClient
-    this.alwaysAddParams = new URLSearchParams([
-      ["featureType", this.config.featureType], 
-      ["feature", this.config.portalSlug]
-    ]);
+ // FIXED: Create alwaysAddParams exactly like original ApiClient
+this.alwaysAddParams = new URLSearchParams([
+  ["featureType", this.config.featureType], 
+  ["feature", this.config.portalSlug]
+]);
 
     if (!this.config.clientId) {
       console.warn('VITE_HISAFE_CLIENT_ID is not set in environment variables');
@@ -211,13 +212,15 @@ private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
   }
 
   // FIXED: Match original request function exactly
-  private async request<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
-    await this.initAuth();
-    return await this.requestImpl(method, url, otherArgs, on401);
-  }
+private async request<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
+  await this.initAuth();
+  return await this.requestImpl(method, url, otherArgs, on401);
+}
+
 
   // FIXED: Match original requestImpl function exactly
  // Update the requestImpl method in hisafeApi.ts to capture error details
+// FIXED: Add signal parameter like working example
 private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
   url += (url.includes("?") ? "&" : "?") + this.alwaysAddParams;
   
@@ -243,23 +246,23 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
     }
     throw new Error("We shouldn't get this far. We should have left the page");
   } else {
-    // ENHANCED: Capture 400 error details
+    // Check if there was an error message (exactly like working example)
     let message = await response.text();
-    console.log('🔍 Raw error response:', message);
-    
     if (message[0] === "{") {
       const jsonValue: any = JSON.parse(message);
-      if (jsonValue.message) {
+      if (jsonValue.message)
         message = jsonValue.message;
-      }
-      console.log('🔍 Parsed error JSON:', jsonValue);
     }
 
+    if (response.status === 500)
+      alert("An unhandled error occured, you may want to reload the page and try again.\n\n" + message);
+    else
+      alert("An error occured:\n" + message);
+
     console.error("Request failed with " + response.status, message, response);
-    throw new Error(`Request failed with ${response.status}: ${message} to: ${response.url}`);
+    throw new Error(`Request failed with ${response.status} to: ${response.url}`);
   }
 }
-
   // FIXED: Match original getPortalMetadata exactly
   async getPortalMetadata() {
     return this.request('GET', 'portal/metadata');
