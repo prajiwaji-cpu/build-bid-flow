@@ -140,29 +140,28 @@ class HiSAFEApiService {
   }
 
   // FIXED: Match original getAuthorizeUrl function exactly
-  private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
-    const codeVerifier = generateRandomBase64Url(64);
-    const codeChallenge = await generateCodeChallenge(codeVerifier);
-    const state = generateRandomBase64Url(8);
+ // FIXED: Match original getAuthorizeUrl function exactly
+private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
+  const codeVerifier = generateRandomBase64Url(64);
+  const codeChallenge = await generateCodeChallenge(codeVerifier);
+  const state = generateRandomBase64Url(8);
 
-    sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state] = codeVerifier;
+  sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state] = codeVerifier;
 
-    const params = new URLSearchParams([
-        ["feature_type", this.config.featureType],
-        ["feature_key", this.config.portalSlug],
-        ["response_type", "code"],
-        ["client_id", this.config.clientId],
-        ["redirect_uri", location.href],
-        ["code_challenge_method", "S256"],
-        ["code_challenge", codeChallenge],
-        ["state", state],
-        ["confirm", JSON.stringify(logout)],
-    ]);
+  const params = new URLSearchParams([
+      ["feature_type", this.config.featureType],  // Note: feature_type not featureType
+      ["feature_key", this.config.portalSlug],   // Note: feature_key not feature
+      ["response_type", "code"],
+      ["client_id", this.config.clientId],
+      ["redirect_uri", location.href],
+      ["code_challenge_method", "S256"],
+      ["code_challenge", codeChallenge],
+      ["state", state],
+      ["confirm", JSON.stringify(logout)],
+  ]);
 
-    // FIXED: Use oauth2/authorize like original, not just authorize
-    return this.getApiUrl("oauth2/authorize?" + params);
-  }
-
+  return this.getApiUrl("oauth2/authorize?" + params);
+}
   // FIXED: Match original initAuth logic exactly
   private async initAuth(): Promise<void> {
     if (this.headers["Authorization"]) {
