@@ -111,7 +111,7 @@ class HiSAFEApiService {
       clientId: import.meta.env.VITE_HISAFE_CLIENT_ID || '',
       portalSlug: import.meta.env.VITE_HISAFE_PORTAL_SLUG || 'quotes',
       featureType: 'PORTAL',
-      apiVersion: '10.1.0'
+      apiVersion: '10.2.1'
     };
 // TEMPORARY: Full debug of environment variables
   console.log('🔍 FULL DEBUG - Environment Variables:', {
@@ -247,7 +247,11 @@ private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
   }
 }
 
-
+// FIXED: Match original request function exactly
+private async request<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
+  await this.initAuth();
+  return await this.requestImpl(method, url, otherArgs, on401);
+}
   // FIXED: Match original requestImpl function exactly
  // Update the requestImpl method in hisafeApi.ts to capture error details
 // FIXED: Add signal parameter like working example
