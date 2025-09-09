@@ -111,24 +111,14 @@ class HiSAFEApiService {
       clientId: import.meta.env.VITE_HISAFE_CLIENT_ID || '',
       portalSlug: import.meta.env.VITE_HISAFE_PORTAL_SLUG || 'quotes',
       featureType: 'PORTAL',
-      apiVersion: '10.2.1'
+      apiVersion: '9.0.0'
     };
-// TEMPORARY: Full debug of environment variables
-  console.log('🔍 FULL DEBUG - Environment Variables:', {
-    'VITE_HISAFE_CLIENT_ID': import.meta.env.VITE_HISAFE_CLIENT_ID,
-    'VITE_HISAFE_BASE_URL': import.meta.env.VITE_HISAFE_BASE_URL,
-    'VITE_HISAFE_PORTAL_SLUG': import.meta.env.VITE_HISAFE_PORTAL_SLUG,
-    'Full client ID': this.config.clientId, // Will show if it's actually the import.meta.env string
-    'Client ID length': this.config.clientId.length,
-    'Environment mode': import.meta.env.MODE,
-    'All env vars': import.meta.env
-  });
+
     // FIXED: Create alwaysAddParams exactly like original ApiClient
- // FIXED: Create alwaysAddParams exactly like original ApiClient
-this.alwaysAddParams = new URLSearchParams([
-  ["featureType", this.config.featureType], 
-  ["feature", this.config.portalSlug]
-]);
+    this.alwaysAddParams = new URLSearchParams([
+      ["featureType", this.config.featureType], 
+      ["feature", this.config.portalSlug]
+    ]);
 
     if (!this.config.clientId) {
       console.warn('VITE_HISAFE_CLIENT_ID is not set in environment variables');
@@ -150,111 +140,85 @@ this.alwaysAddParams = new URLSearchParams([
   }
 
   // FIXED: Match original getAuthorizeUrl function exactly
- // FIXED: Match original getAuthorizeUrl function exactly
-private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
-  const codeVerifier = generateRandomBase64Url(64);
-  const codeChallenge = await generateCodeChallenge(codeVerifier);
-  const state = generateRandomBase64Url(8);
+  private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
+    const codeVerifier = generateRandomBase64Url(64);
+    const codeChallenge = await generateCodeChallenge(codeVerifier);
+    const state = generateRandomBase64Url(8);
 
-  sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state] = codeVerifier;
+    sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state] = codeVerifier;
 
-  const params = new URLSearchParams([
-      ["feature_type", this.config.featureType],  // Note: feature_type not featureType
-      ["feature_key", this.config.portalSlug],   // Note: feature_key not feature
-      ["response_type", "code"],
-      ["client_id", this.config.clientId],
-      ["redirect_uri", location.href],
-      ["code_challenge_method", "S256"],
-      ["code_challenge", codeChallenge],
-      ["state", state],
-      ["confirm", JSON.stringify(logout)],
-  ]);
+    const params = new URLSearchParams([
+        ["feature_type", this.config.featureType],
+        ["feature_key", this.config.portalSlug],
+        ["response_type", "code"],
+        ["client_id", this.config.clientId],
+        ["redirect_uri", location.href],
+        ["code_challenge_method", "S256"],
+        ["code_challenge", codeChallenge],
+        ["state", state],
+        ["confirm", JSON.stringify(logout)],
+    ]);
 
-  return this.getApiUrl("oauth2/authorize?" + params);
-}
+    // FIXED: Use oauth2/authorize like original, not just authorize
+    return this.getApiUrl("oauth2/authorize?" + params);
+  }
+
   // FIXED: Match original initAuth logic exactly
   private async initAuth(): Promise<void> {
-  if (this.headers["Authorization"]) {
-    return; // Already authenticated
-  }
+    if (this.headers["Authorization"]) {
+      return; // Already authenticated
+    }
 
-  type HisafeTokens = {
-    access_token: string;
-    token_type: "Bearer";
-  };
+    type HisafeTokens = {
+      access_token: string;
+      token_type: "Bearer";
+    };
 
-  const params = new URLSearchParams(location.search);
-  
-  // PREVENT INFINITE REDIRECT LOOP - Check for OAuth errors first
-  const error = params.get("error");
-  
-  if (error) {
-    console.error("🚨 OAuth Error:", {
-      error: error,
-      error_description: params.get("error_description"),
-      state: params.get("state"),
-      currentUrl: location.href,
-      clientId: this.config.clientId
-    });
+    const params = new URLSearchParams(location.search);
+    const authCode = params.get("code");
+    const state = params.get("state");
     
-    // Clear error params to prevent loop
-    params.delete("error");
-    params.delete("error_description"); 
-    params.delete("state");
-    
-    const cleanUrl = location.origin + location.pathname + 
-      (params.toString() ? "?" + params.toString() : "");
-    history.replaceState(null, "", cleanUrl);
-    
-    // Stop the loop - don't try to authenticate again
-    throw new Error(`OAuth authentication failed: ${error}`);
+    if (authCode && state) {
+      // Remove these from the URL (exactly like original)
+      params.delete("code");
+      params.delete("state");
+      const qs = params.toString();
+      const newUrl = location.origin + location.pathname + (qs ? "?" + qs : "");
+      history.replaceState(null, "", newUrl);
+
+      // FIXED: Use oauth2/token like original, not just token
+      const result = await this.requestImpl<HisafeTokens>("POST", "oauth2/token", {
+        body: JSON.stringify({
+          grant_type: "authorization_code",
+          code: authCode,
+          client_id: this.config.clientId,
+          code_verifier: sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state],
+        }),
+        headers: {
+          "Content-Type": "application/json"
+        }
+      });
+
+      sessionStorage.removeItem(CODE_VERIFIER_SESSION_STORAGE_KEY + state);
+      localStorage[TOKEN_LOCAL_STORAGE_KEY] = JSON.stringify(result);
+    }
+
+    if (localStorage[TOKEN_LOCAL_STORAGE_KEY]) {
+      const { token_type, access_token } = JSON.parse(localStorage[TOKEN_LOCAL_STORAGE_KEY]) as HisafeTokens;
+      this.headers["Authorization"] = token_type + " " + access_token;
+    } else {
+      location.href = await this.getAuthorizeUrl();
+    }
   }
 
-  // Continue with normal auth flow
-  const authCode = params.get("code");
-  const state = params.get("state");
-  
-  if (authCode && state) {
-    // Remove these from the URL (exactly like original)
-    params.delete("code");
-    params.delete("state");
-    const qs = params.toString();
-    const newUrl = location.origin + location.pathname + (qs ? "?" + qs : "");
-    history.replaceState(null, "", newUrl);
-
-    // FIXED: Use oauth2/token like original, not just token
-    const result = await this.requestImpl<HisafeTokens>("POST", "oauth2/token", {
-      body: JSON.stringify({
-        grant_type: "authorization_code",
-        code: authCode,
-        client_id: this.config.clientId,
-        code_verifier: sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state],
-      }),
-      headers: {
-        "Content-Type": "application/json"
-      }
-    });
-
-    sessionStorage.removeItem(CODE_VERIFIER_SESSION_STORAGE_KEY + state);
-    localStorage[TOKEN_LOCAL_STORAGE_KEY] = JSON.stringify(result);
+  // FIXED: Match original request function exactly
+  private async request<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
+    await this.initAuth();
+    return await this.requestImpl(method, url, otherArgs, on401);
   }
 
-  if (localStorage[TOKEN_LOCAL_STORAGE_KEY]) {
-    const { token_type, access_token } = JSON.parse(localStorage[TOKEN_LOCAL_STORAGE_KEY]) as HisafeTokens;
-    this.headers["Authorization"] = token_type + " " + access_token;
-  } else {
-    location.href = await this.getAuthorizeUrl();
-  }
-}
-
-// FIXED: Match original request function exactly
-private async request<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
-  await this.initAuth();
-  return await this.requestImpl(method, url, otherArgs, on401);
-}
   // FIXED: Match original requestImpl function exactly
  // Update the requestImpl method in hisafeApi.ts to capture error details
-// FIXED: Add signal parameter like working example
 private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
   url += (url.includes("?") ? "&" : "?") + this.alwaysAddParams;
   
@@ -280,23 +244,23 @@ private async requestImpl<T>(method: "GET" | "POST" | "PATCH", url: string, othe
     }
     throw new Error("We shouldn't get this far. We should have left the page");
   } else {
-    // Check if there was an error message (exactly like working example)
+    // ENHANCED: Capture 400 error details
     let message = await response.text();
+    console.log('🔍 Raw error response:', message);
+    
     if (message[0] === "{") {
       const jsonValue: any = JSON.parse(message);
-      if (jsonValue.message)
+      if (jsonValue.message) {
         message = jsonValue.message;
+      }
+      console.log('🔍 Parsed error JSON:', jsonValue);
     }
 
-    if (response.status === 500)
-      alert("An unhandled error occured, you may want to reload the page and try again.\n\n" + message);
-    else
-      alert("An error occured:\n" + message);
-
     console.error("Request failed with " + response.status, message, response);
-    throw new Error(`Request failed with ${response.status} to: ${response.url}`);
+    throw new Error(`Request failed with ${response.status}: ${message} to: ${response.url}`);
   }
 }
+
   // FIXED: Match original getPortalMetadata exactly
   async getPortalMetadata() {
     return this.request('GET', 'portal/metadata');
