@@ -174,11 +174,18 @@ private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
 }
   // FIXED: Match original initAuth logic exactly
   private async initAuth(): Promise<void> {
-    if (this.headers["Authorization"]) {
-      return; // Already authenticated
-    }
-     // PREVENT INFINITE REDIRECT LOOP
+  if (this.headers["Authorization"]) {
+    return; // Already authenticated
+  }
+
+  type HisafeTokens = {
+    access_token: string;
+    token_type: "Bearer";
+  };
+
   const params = new URLSearchParams(location.search);
+  
+  // PREVENT INFINITE REDIRECT LOOP - Check for OAuth errors first
   const error = params.get("error");
   
   if (error) {
@@ -191,64 +198,53 @@ private async getAuthorizeUrl(logout: boolean = false): Promise<string> {
     });
     
     // Clear error params to prevent loop
-    const cleanParams = new URLSearchParams(location.search);
-    cleanParams.delete("error");
-    cleanParams.delete("error_description"); 
-    cleanParams.delete("state");
+    params.delete("error");
+    params.delete("error_description"); 
+    params.delete("state");
     
     const cleanUrl = location.origin + location.pathname + 
-      (cleanParams.toString() ? "?" + cleanParams.toString() : "");
+      (params.toString() ? "?" + params.toString() : "");
     history.replaceState(null, "", cleanUrl);
     
     // Stop the loop - don't try to authenticate again
     throw new Error(`OAuth authentication failed: ${error}`);
   }
-    type HisafeTokens = {
-      access_token: string;
-      token_type: "Bearer";
-    };
 
-    const params = new URLSearchParams(location.search);
-    const authCode = params.get("code");
-    const state = params.get("state");
-    
-    if (authCode && state) {
-      // Remove these from the URL (exactly like original)
-      params.delete("code");
-      params.delete("state");
-      const qs = params.toString();
-      const newUrl = location.origin + location.pathname + (qs ? "?" + qs : "");
-      history.replaceState(null, "", newUrl);
+  // Continue with normal auth flow
+  const authCode = params.get("code");
+  const state = params.get("state");
+  
+  if (authCode && state) {
+    // Remove these from the URL (exactly like original)
+    params.delete("code");
+    params.delete("state");
+    const qs = params.toString();
+    const newUrl = location.origin + location.pathname + (qs ? "?" + qs : "");
+    history.replaceState(null, "", newUrl);
 
-      // FIXED: Use oauth2/token like original, not just token
-      const result = await this.requestImpl<HisafeTokens>("POST", "oauth2/token", {
-        body: JSON.stringify({
-          grant_type: "authorization_code",
-          code: authCode,
-          client_id: this.config.clientId,
-          code_verifier: sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state],
-        }),
-        headers: {
-          "Content-Type": "application/json"
-        }
-      });
+    // FIXED: Use oauth2/token like original, not just token
+    const result = await this.requestImpl<HisafeTokens>("POST", "oauth2/token", {
+      body: JSON.stringify({
+        grant_type: "authorization_code",
+        code: authCode,
+        client_id: this.config.clientId,
+        code_verifier: sessionStorage[CODE_VERIFIER_SESSION_STORAGE_KEY + state],
+      }),
+      headers: {
+        "Content-Type": "application/json"
+      }
+    });
 
-      sessionStorage.removeItem(CODE_VERIFIER_SESSION_STORAGE_KEY + state);
-      localStorage[TOKEN_LOCAL_STORAGE_KEY] = JSON.stringify(result);
-    }
-
-    if (localStorage[TOKEN_LOCAL_STORAGE_KEY]) {
-      const { token_type, access_token } = JSON.parse(localStorage[TOKEN_LOCAL_STORAGE_KEY]) as HisafeTokens;
-      this.headers["Authorization"] = token_type + " " + access_token;
-    } else {
-      location.href = await this.getAuthorizeUrl();
-    }
+    sessionStorage.removeItem(CODE_VERIFIER_SESSION_STORAGE_KEY + state);
+    localStorage[TOKEN_LOCAL_STORAGE_KEY] = JSON.stringify(result);
   }
 
-  // FIXED: Match original request function exactly
-private async request<T>(method: "GET" | "POST" | "PATCH", url: string, otherArgs?: Partial<RequestInit>, on401?: () => T): Promise<T> {
-  await this.initAuth();
-  return await this.requestImpl(method, url, otherArgs, on401);
+  if (localStorage[TOKEN_LOCAL_STORAGE_KEY]) {
+    const { token_type, access_token } = JSON.parse(localStorage[TOKEN_LOCAL_STORAGE_KEY]) as HisafeTokens;
+    this.headers["Authorization"] = token_type + " " + access_token;
+  } else {
+    location.href = await this.getAuthorizeUrl();
+  }
 }
 
 
