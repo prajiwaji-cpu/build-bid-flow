@@ -111,9 +111,18 @@ class HiSAFEApiService {
       clientId: import.meta.env.VITE_HISAFE_CLIENT_ID || '',
       portalSlug: import.meta.env.VITE_HISAFE_PORTAL_SLUG || 'quotes',
       featureType: 'PORTAL',
-      apiVersion: '9.0.0'
+      apiVersion: '10.1.0'
     };
-
+// TEMPORARY: Full debug of environment variables
+  console.log('🔍 FULL DEBUG - Environment Variables:', {
+    'VITE_HISAFE_CLIENT_ID': import.meta.env.VITE_HISAFE_CLIENT_ID,
+    'VITE_HISAFE_BASE_URL': import.meta.env.VITE_HISAFE_BASE_URL,
+    'VITE_HISAFE_PORTAL_SLUG': import.meta.env.VITE_HISAFE_PORTAL_SLUG,
+    'Full client ID': this.config.clientId, // Will show if it's actually the import.meta.env string
+    'Client ID length': this.config.clientId.length,
+    'Environment mode': import.meta.env.MODE,
+    'All env vars': import.meta.env
+  });
     // FIXED: Create alwaysAddParams exactly like original ApiClient
  // FIXED: Create alwaysAddParams exactly like original ApiClient
 this.alwaysAddParams = new URLSearchParams([
